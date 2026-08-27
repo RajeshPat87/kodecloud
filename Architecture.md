@@ -1313,3 +1313,153 @@ variant of the same content captured from the diagram editor.
 | `agentic-terraform-workflow.jpeg`, `agentic-terraform-flow-plain.jpeg` | [C16 — Agentic IaC delivery](#c16--how-the-network-actually-gets-built) |
 
 ---
+
+---
+title: Production EKS Cluster - HA, Secure, Scalable, Observable, Automated
+---
+flowchart TB
+    Users(["🌐 Internet Users / Clients"]):::internet
+
+    %% ================= AWS CLOUD =================
+    subgraph AWS["☁️ AWS Cloud - Region"]
+        direction TB
+
+        subgraph CP["🧠 EKS Control Plane - AWS Managed"]
+            direction LR
+            APISERVER["kube-apiserver<br/>Private endpoint OR<br/>restricted to trusted CIDRs"]:::eks
+            ETCD["etcd + scheduler +<br/>controller-manager"]:::eks
+        end
+
+        subgraph VPC["🕸️ VPC - spanning 3 Availability Zones"]
+            direction TB
+            IGW["Internet Gateway"]:::edge
+
+            subgraph AZA["📦 Availability Zone A"]
+                direction TB
+                PUBA["Public Subnet<br/>ALB L7 / NLB L4<br/>NAT Gateway"]:::public
+                PRVA["Private Subnet<br/>Worker Nodes / Pods<br/>DB and Stateful Data"]:::private
+                PUBA --> PRVA
+            end
+
+            subgraph AZB["📦 Availability Zone B"]
+                direction TB
+                PUBB["Public Subnet<br/>ALB / NLB<br/>NAT Gateway"]:::public
+                PRVB["Private Subnet<br/>Worker Nodes / Pods<br/>DB and Stateful Data"]:::private
+                PUBB --> PRVB
+            end
+
+            subgraph AZC["📦 Availability Zone C"]
+                direction TB
+                PUBC["Public Subnet<br/>ALB / NLB<br/>NAT Gateway"]:::public
+                PRVC["Private Subnet<br/>Worker Nodes / Pods<br/>DB and Stateful Data"]:::private
+                PUBC --> PRVC
+            end
+        end
+
+        %% ============ COMPUTE / NODE MGMT ============
+        subgraph COMPUTE["⚙️ Compute and Node Management"]
+            direction LR
+            MNG["1. Managed Node Groups<br/>AWS-managed EC2 lifecycle<br/>USE: default, low-ops, patching"]:::compute
+            SELF["2. Self-Managed Nodes<br/>You own EC2 lifecycle<br/>USE: custom AMI/kernel/GPU, compliance"]:::compute
+            FARGATE["3. AWS Fargate<br/>Serverless pods - no nodes<br/>USE: bursty, isolated, 1 pod = 1 microVM"]:::compute
+        end
+
+        %% ============ WORKLOAD RESILIENCE ============
+        subgraph RESIL["🛡️ Workload Resilience"]
+            direction TB
+            REQLIM["Resource requests and limits"]:::resil
+            PROBES["Liveness / Readiness / Startup probes"]:::resil
+            PDB["PodDisruptionBudgets<br/>protect availability on maintenance"]:::resil
+            SPREAD["Topology Spread Constraints<br/>across AZs and nodes"]:::resil
+        end
+
+        %% ============ ELASTIC SCALING ============
+        subgraph SCALE["📈 Elastic Scaling"]
+            direction TB
+            HPA["HPA<br/>scale pods on CPU / mem / custom KEDA"]:::scale
+            KARP["Karpenter / Cluster Autoscaler<br/>scale nodes to match demand"]:::scale
+        end
+    end
+
+    %% ================= SECURITY (cross-cutting) =================
+    subgraph SEC["🔐 Security and Access Control"]
+        direction TB
+        IRSA["Pod Identity / IRSA<br/>least-privilege AWS access per pod"]:::sec
+        RBAC["Kubernetes RBAC<br/>fine-grained roles and bindings"]:::sec
+        NETPOL["Network Policies + Pod Security Standard<br/>restrict pod-to-pod traffic"]:::sec
+        SECRETS["Secret Mgmt<br/>KMS encrypt-at-rest + Secrets Manager / External Secrets"]:::sec
+    end
+
+    %% ================= OBSERVABILITY =================
+    subgraph OBS["👁️ Observability"]
+        direction LR
+        LOGS["Logging<br/>CloudWatch"]:::obs
+        METRICS["Metrics<br/>Prometheus / Grafana"]:::obs
+        TRACE["Tracing / Alerting<br/>OpenTelemetry"]:::obs
+    end
+
+    %% ================= AUTOMATION =================
+    subgraph AUTO["🤖 Automation"]
+        direction LR
+        IAC["IaC<br/>Terraform / CloudFormation / CDK"]:::auto
+        GITOPS["GitOps<br/>Argo CD / Flux - self-healing"]:::auto
+    end
+
+    %% ================= OPERATIONS / DR =================
+    subgraph OPS["🔄 Operations, Upgrades and DR"]
+        direction LR
+        UPG["Regular EKS version upgrades"]:::dr
+        BACKUP["Backups + restore testing<br/>Velero"]:::dr
+        DR["Disaster Recovery<br/>defined RTO / RPO targets"]:::dr
+    end
+
+    %% ================= EDGES =================
+    Users --> IGW
+    IGW --> PUBA & PUBB & PUBC
+
+    PRVA -. "TLS to API" .-> APISERVER
+    PRVB -. "TLS to API" .-> APISERVER
+    PRVC -. "TLS to API" .-> APISERVER
+    APISERVER --- ETCD
+
+    PRVA --- COMPUTE
+    PRVB --- COMPUTE
+    PRVC --- COMPUTE
+
+    COMPUTE --> RESIL
+    RESIL --> SCALE
+
+    SEC -.->|guards| VPC
+    SEC -.->|enforced on| COMPUTE
+    OBS -.->|watches| AWS
+    AUTO -->|provisions and syncs| AWS
+    OPS -.->|maintains| AWS
+
+    %% ================= STYLES =================
+    classDef internet fill:#1d2b3a,stroke:#0af,stroke-width:2px,color:#fff
+    classDef edge fill:#ff9900,stroke:#b36b00,stroke-width:2px,color:#000
+    classDef public fill:#cfe8ff,stroke:#1a73e8,stroke-width:2px,color:#062a5a
+    classDef private fill:#d7f5dd,stroke:#1e8e3e,stroke-width:2px,color:#0b3d1a
+    classDef eks fill:#e7dcff,stroke:#6b3ff2,stroke-width:2px,color:#2a1560
+    classDef compute fill:#fff3c4,stroke:#e6a700,stroke-width:2px,color:#4a3800
+    classDef resil fill:#ffe0e6,stroke:#e91e63,stroke-width:2px,color:#5a0d24
+    classDef scale fill:#d4f5f0,stroke:#009688,stroke-width:2px,color:#053b35
+    classDef sec fill:#ffd8d2,stroke:#d93025,stroke-width:2px,color:#5a120c
+    classDef obs fill:#e2d6ff,stroke:#7c4dff,stroke-width:2px,color:#2c1466
+    classDef auto fill:#d6ecff,stroke:#0b74de,stroke-width:2px,color:#062f5a
+    classDef dr fill:#ffe6c7,stroke:#f57c00,stroke-width:2px,color:#4a2600
+
+    style AWS fill:#0f1b2d,stroke:#ff9900,stroke-width:3px,color:#fff
+    style VPC fill:#15263d,stroke:#00c2ff,stroke-width:2px,color:#fff
+    style CP fill:#241a45,stroke:#6b3ff2,stroke-width:2px,color:#fff
+    style AZA fill:#0d2033,stroke:#3ea6ff,color:#fff
+    style AZB fill:#0d2033,stroke:#3ea6ff,color:#fff
+    style AZC fill:#0d2033,stroke:#3ea6ff,color:#fff
+    style COMPUTE fill:#3a3210,stroke:#e6a700,color:#fff
+    style RESIL fill:#3a1420,stroke:#e91e63,color:#fff
+    style SCALE fill:#0d302b,stroke:#009688,color:#fff
+    style SEC fill:#3a1310,stroke:#d93025,color:#fff
+    style OBS fill:#241a45,stroke:#7c4dff,color:#fff
+    style AUTO fill:#0d2440,stroke:#0b74de,color:#fff
+    style OPS fill:#3a2510,stroke:#f57c00,color:#fff
+
