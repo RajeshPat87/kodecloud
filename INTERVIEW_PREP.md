@@ -512,5 +512,3 @@ Developer → Git (branch/PR)
 | `100DaysofTerraform/06.Terrafrom_elastic_ip.md` | Elastic IP creation | Partly covered by `26.Terraform_elsaticip.md` |
 | `100DaysofTerraform/35.Terraform_variablesetup.md` | Variables, tfvars, precedence | Asked in nearly every Terraform interview |
 | `100DaysofAzure/24.vm_deploy_private_vn.md` | Private VNet VM deploy | The secure-topology counterpart to file 23 |
-| `100DaysofAWS/08.AWS_EC2_stop_protection.md` | EC2 stop protection | Empty file — content lives in `07.AWS_EC2_chnage.md`; fold or fill it |
-| `100DaysofAWS/30.AWS_Public_Private_Ec2.md` | Public/private EC2 topology | Empty file, and this is the topology interviewers draw most often |
