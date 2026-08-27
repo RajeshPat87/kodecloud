@@ -514,4 +514,3 @@ Developer → Git (branch/PR)
 | `100DaysofAzure/24.vm_deploy_private_vn.md` | Private VNet VM deploy | The secure-topology counterpart to file 23 |
 | `100DaysofAWS/08.AWS_EC2_stop_protection.md` | EC2 stop protection | Empty file — content lives in `07.AWS_EC2_chnage.md`; fold or fill it |
 | `100DaysofAWS/30.AWS_Public_Private_Ec2.md` | Public/private EC2 topology | Empty file, and this is the topology interviewers draw most often |
-| `100DaysofAWS/31.AWS_RDS_MySQL.md` | RDS MySQL | Empty duplicate of `31.AWS_RDS_Mysql.md` — delete one, the case-only clash breaks on case-insensitive filesystems |
