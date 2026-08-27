@@ -1,8 +1,104 @@
 # KodeKloud — Interview Prep Master Table
 
-Covers all 197 labs across `100DaysofDevops` (100), `100DaysofK8s` (15), `100DaysofTerraform` (35), `100DaysofAzure` (47).
+Covers all 247 labs across `100DaysofDevops` (100), `100DaysofAWS` (50), `100DaysofAzure` (47), `100DaysofTerraform` (35), `100DaysofK8s` (15) — plus a Linux command baseline that every troubleshooting question eventually lands on.
 
 **How to use:** Each row is one interview answer. Read *Concept* → say the *Real-time use* → drop the *Command* → close with the *Architecture* line. That last column is what separates a junior answer from a senior one.
+
+**Start at section 0.** Linux file, OS, network, and resource commands are non-negotiable for any troubleshooting round — cloud consoles change, `ss` and `journalctl` do not.
+
+---
+
+## 0. Linux Command Arsenal — the troubleshooting baseline
+
+Every interview that touches DevOps, Cloud, or SRE opens or closes here. Cloud consoles change; `ss`, `journalctl`, and `iostat` do not. Learn these four tables as one loop: **what is the file doing → what is the OS doing → what is the network doing → what is the machine spending**.
+
+### 0a. File & directory operations
+
+| Command | What it tells you / does | When you reach for it | Trap or senior point |
+|---|---|---|---|
+| `ls -lhtr`, `ls -lah` | Long listing with human sizes, oldest→newest | "Which log rotated last?", "did the artifact actually land?" | `-tr` puts the newest at the bottom — the only sane order on a busy directory you are tailing |
+| `find /var/log -type f -size +100M -mtime -1` | Files by type, size, age, owner | Disk filled overnight — find the culprit before you delete anything | `-exec cmd {} \;` runs once per file, `{} +` batches. Always dry-run with `-print` first; `find -delete` has no undo |
+| `du -h --max-depth=1 /var \| sort -rh \| head` | Space consumed per directory, biggest first | `/` at 100% — walk down the tree one level at a time | `du` counts what files claim, `df` counts what the filesystem lost. When they disagree, you have deleted-but-open files |
+| `df -hT`, `df -i` | Free space per mount + **inode** usage | "No space left on device" while `df -h` shows free space | That is inode exhaustion — millions of tiny files (session/cache dirs). `df -i` is the check nobody remembers |
+| `lsof +L1`, `lsof -p PID`, `lsof /mount` | Open file handles; `+L1` = unlinked but still held | Deleted a 20 GB log and got no space back | A deleted file keeps its blocks until the last holder closes it — restart the process, don't hunt for the file |
+| `stat file` | Inode, size, atime/mtime/ctime, permissions | "Who changed this, and when?" | mtime = content changed, ctime = metadata/permissions changed. `touch` can forge mtime, not ctime — forensics relies on that |
+| `tail -F app.log`, `tail -n 200`, `head`, `less +F` | Read or stream a file | Live-tail during a deploy or a failing health check | `-F` follows the **name** and survives rotation; `-f` follows the inode and goes silent the moment logrotate runs |
+| `grep -rn "ERROR" /var/log --include=*.log -C5` | Recursive search with line numbers and context | Pull the stack trace *around* the failure, not just the line | `-C/-A/-B` context is what makes grep usable in an incident; `-c` counts, `-l` lists files only, `-v` inverts |
+| `awk '{print $9}' access.log \| sort \| uniq -c \| sort -rn \| head` | Extract a field, then rank by frequency | Top status codes, top URLs, top client IPs | The canonical log-triage one-liner. Learn it as one unit — it answers "what is actually failing" in five seconds |
+| `sed -i.bak 's/old/new/g' file` | Stream edit, in place, with a backup | Flip a config value across a fleet from Ansible or a loop | Always `-i.bak`. A greedy regex without a backup is an outage, and `sed -i` on a symlink replaces the link, not the target |
+| `tar -czf bundle.tgz dir/`, `tar -xzf`, `zgrep`, `zcat` | Archive, extract, search compressed logs | Shipping evidence to a vendor; grepping yesterday's rotated `.gz` | `zgrep` searches gzipped logs without expanding them to a disk that is already full |
+| `rsync -avz --dry-run src/ dst/` | Delta copy over SSH with progress and resume | Migrating app data or web roots between hosts | `--dry-run` first, every time. A trailing slash on the source copies *contents*; no slash copies the *directory* |
+| `ln -s /opt/releases/r42 /opt/current` | Symlink | Blue/green release switch and instant rollback | Swapping a symlink is atomic — the cheapest rollback mechanism that exists. Capistrano, Deployer, and most CD tools are this plus bookkeeping |
+| `chmod 640`, `chown app:app`, `umask`, `getfacl/setfacl` | Discretionary permission model | "Permission denied" straight after a deploy | Default umask 022 explains most surprises. ACLs silently override plain rwx — the only hint in `ls -l` is the trailing `+` |
+| `realpath`, `readlink -f`, `basename`, `dirname` | Resolve paths regardless of invocation directory | Scripts that must work from cron, CI, and your shell alike | `cd "$(dirname "$(readlink -f "$0")")"` is the first line of every portable ops script |
+
+### 0b. Operating system, services & kernel
+
+| Command | What it tells you / does | When you reach for it | Trap or senior point |
+|---|---|---|---|
+| `uname -a`, `cat /etc/os-release`, `hostnamectl` | Kernel version, distro, machine identity | First line of every bug report and patching decision | Kernel version drives which CVEs, cgroup version, and container runtime features apply to you |
+| `uptime`, `who -b`, `last reboot` | How long up, when it last booted | "Did the box bounce, or did just the service die?" | The three numbers in `uptime` are 1/5/15-minute **run-queue length**, not CPU percentage — compare them to core count |
+| `systemctl status\|start\|stop\|restart\|enable --now svc` | Unit lifecycle and current state | Service is down; bring it back and make it stay back | `start` = now, `enable` = survives reboot. Forgetting `enable` is the single most common repeat incident |
+| `systemctl list-units --failed` | Everything currently broken, in one screen | First command after any unexpected reboot | Faster than checking services one by one, and it catches the dependency that failed *before* your app |
+| `journalctl -xeu svc`, `-u svc --since "10 min ago"`, `-p err -b` | Service logs from the journal, filtered | A unit refuses to start and prints nothing useful | `-b` = this boot only, `-p err` = severity filter, `-x` = adds catalog explanations. `-f` to follow |
+| `dmesg -T \| tail -50`, `journalctl -k` | Kernel ring buffer | OOM kills, disk I/O errors, NIC resets, filesystem remounts read-only | The OOM killer's verdict appears **only here** — the application never logs its own death |
+| `systemd-analyze blame`, `critical-chain` | What made boot slow, attributed per unit | A VM takes four minutes to become useful in an autoscaling group | Slow boot is a scaling problem: it is dead time inside every scale-out event and every rolling restart |
+| `crontab -l -u user`, `ls /etc/cron.d/`, `systemctl list-timers` | Scheduled work on the host | "The nightly job stopped running" | Cron runs with a minimal `PATH` and no login environment — that is 80% of "works manually, fails in cron". Absolute paths, and log stdout/stderr |
+| `sysctl -a \| grep <knob>`, `/etc/sysctl.d/` | Kernel tunables (runtime + persistent) | Connection tracking full, backlog drops, forwarding disabled | `net.ipv4.ip_forward`, `net.core.somaxconn`, `fs.file-max`, `net.netfilter.nf_conntrack_max` are the four that show up in real tickets |
+| `ulimit -a`, `/etc/security/limits.conf`, `LimitNOFILE=` | Per-process resource ceilings | "Too many open files" under load | Your shell's `ulimit` is **not** what a systemd daemon gets — `LimitNOFILE=` in the unit file is the one that applies. Same idea as a container's limits |
+| `rpm -qa \| grep x` / `dpkg -l`, `yum list installed` / `apt list --installed` | Package inventory | CVE response: "are we running the affected version?" | This is the manual version of an SBOM. At fleet scale it is Ansible facts or an inventory tool, never SSH-in-a-loop |
+| `rpm -qf /path` / `dpkg -S /path` | Which package owns a file | "Where did this binary come from and is it managed?" | Unowned files in `/usr/bin` are the fingerprint of a manual change — exactly the drift IaC exists to prevent |
+| `getenforce`, `ausearch -m avc -ts recent`, `restorecon -Rv /path` | SELinux mode and denial audit trail | Permission denied that correct `chmod`/`chown` does not fix | Relabel, never `setenforce 0`. Disabling MAC is an audit finding in every regulated environment |
+| `timedatectl`, `chronyc sources -v` | Clock and NTP sync state | TLS handshakes failing, tokens "expired", logs out of order across hosts | Skew beyond a few minutes breaks Kerberos, SAML, AWS SigV4, and JWT validation simultaneously — and the errors never say "your clock is wrong" |
+
+### 0c. Networking
+
+| Command | What it tells you / does | When you reach for it | Trap or senior point |
+|---|---|---|---|
+| `ip -br a`, `ip a` | Interfaces, addresses, up/down state | Step one of "the host is unreachable" | `ifconfig` is deprecated and lies about secondary addresses. `-br` is the readable form |
+| `ip r`, `ip route get 8.8.8.8` | Routing table, and which route a given destination actually uses | Missing default gateway, asymmetric routing, multi-NIC hosts | `route get` answers "which interface and source IP will this leave by" — the question a routing table alone does not answer |
+| `ss -tulnp` | Listening sockets with the owning PID and user | "Connection refused" vs "connection timed out" | **Refused = nothing is listening. Timed out = firewall or route.** That single distinction is the answer interviewers are fishing for |
+| `ss -s`, `ss -tan state time-wait \| wc -l` | Socket state census | Ephemeral port exhaustion, TIME_WAIT pile-up behind a proxy | A connection-per-request client at high RPS exhausts ports long before it exhausts CPU — fix with keep-alive, not with sysctl hacks |
+| `ping -c4 host`, `ping -M do -s 1472 host` | ICMP reachability; forced-DF probe for path MTU | "Small requests work, large ones hang" | That symptom is MTU/fragmentation — classic on VPNs, VXLAN/overlay CNIs, and IPsec tunnels. ICMP being blocked also makes PMTU discovery fail silently |
+| `traceroute -n host`, `mtr -rwc 100 host` | Hop-by-hop path and per-hop loss | Intermittent latency that curl alone cannot characterise | `mtr` samples continuously, so it shows *which* hop loses packets over time; traceroute is one snapshot |
+| `dig +short name`, `dig @1.1.1.1 name`, `dig +trace`, `getent hosts` | DNS resolution, per-resolver and end-to-end | "It resolves on my laptop but not on the server" | Always query a **specific** resolver. `/etc/hosts`, `nsswitch.conf` order, and search domains decide the real winner — `getent` shows what the app will actually get |
+| `curl -Iv https://host`, `curl -o /dev/null -s -w 'dns:%{time_namelookup} conn:%{time_connect} ttfb:%{time_starttransfer} total:%{time_total} code:%{http_code}\n'` | L7 probe with a full timing breakdown | "Is it the network, the TLS handshake, or the app?" | The `-w` timing split localises latency in one command — slow DNS, slow connect, and slow TTFB are three completely different tickets |
+| `openssl s_client -connect host:443 -servername host` | Certificate chain, expiry, SNI, protocol and cipher | TLS errors, "works in browser, fails in curl/Java" | Missing **intermediate** certs and SNI mismatches are invisible in a browser (it caches the chain) but fatal for every API client |
+| `tcpdump -i any -nn 'port 3306' -c 200 -w cap.pcap` | Packet-level truth | "The app says it sent it, the DB says it never arrived" | `-nn` skips name lookups, which can themselves hang during a network incident. Capture to a file, analyse in Wireshark, never eyeball a busy interface |
+| `nc -zv host 22`, `nc -l 9000` | Port reachability test and a throwaway listener | Prove the network path independently of the application | Standing up `nc -l` on the target proves whether the path or the app is at fault — the single fastest way to end a "network vs app" argument |
+| `iptables -L -n -v --line-numbers`, `nft list ruleset`, `firewall-cmd --list-all` | Host firewall rules **with packet counters** | Traffic reaching the host but disappearing | The counters are the evidence: zero hits means the packet never arrived, so the problem is upstream (SG/NSG/route), not local |
+| `ip -s link`, `netstat -i`, `ethtool eth0` | Interface errors, drops, link speed and duplex | Packet loss with healthy CPU and healthy app | Rising `RX dropped`/`errors` points at the NIC, driver, or ring buffers — a layer most people never check |
+| `/etc/resolv.conf`, `/etc/hosts`, `/etc/nsswitch.conf` | Name-resolution configuration and its precedence | Split-brain resolution, stale overrides left by a previous engineer | In containers these are injected by the runtime; in Kubernetes by the kubelet with `ndots:5` — the cause of most "DNS is slow in K8s" reports |
+
+### 0d. Resource consumption — CPU, memory, disk I/O, processes
+
+| Command | What it tells you / does | When you reach for it | Trap or senior point |
+|---|---|---|---|
+| `top`, `htop` | Live CPU, memory, load, per-process | The first sixty seconds of any "server is slow" call | High `%wa` (iowait) means disk-bound, **not** CPU-bound. Press `1` for per-core, `M`/`P` to sort by memory/CPU |
+| `uptime` / `cat /proc/loadavg` | Run-queue depth over 1/5/15 minutes | Is the box saturated, and is it getting better or worse? | Load must be read against core count: load 8 on 8 cores is saturated, on 32 cores it is idle. Rising 1-min over 15-min means it is still degrading |
+| `ps -eo pid,ppid,user,%cpu,%mem,etime,cmd --sort=-%cpu \| head` | Top consumers with parentage and age | Identify the runaway and who spawned it | `ppid` and `etime` turn "one process is hot" into "this cron job forked at 03:00 and never exited" |
+| `free -h`, `cat /proc/meminfo` | Memory breakdown | "We are out of RAM" | **`available` is the number that matters, not `free`.** buff/cache is reclaimable — a box with 200 MB "free" and 12 GB "available" is perfectly healthy |
+| `vmstat 1 5` | Run queue, swap in/out, io wait, context switches | One command that separates CPU, memory, and I/O pressure | Sustained non-zero `si`/`so` means the box is swapping — that, not CPU, is your latency. High `cs` means contention/too many threads |
+| `iostat -xz 1` | Per-device utilisation, `await`, queue depth | Disk-bound workloads, noisy-neighbour EBS volumes | `%util` near 100 with rising `await` = the disk is the bottleneck. On EBS this usually means you hit the IOPS/throughput ceiling for the volume type |
+| `iotop -oPa`, `pidstat -d 1` | Which process is generating the I/O | You know the disk is saturated; now attribute it | Attribution is the whole game — "the disk is busy" is not an action item, "this backup job is doing 400 MB/s" is |
+| `pidstat -u -r -d 1` | Per-process CPU, memory and I/O sampled over time | Intermittent spikes that `top` keeps missing | Sampling over time beats a snapshot for anything periodic — GC pauses, cron collisions, log rotation |
+| `sar -u`, `sar -r`, `sar -n DEV`, `sar -f /var/log/sa/saDD` | **Historical** CPU/memory/network, retained for days | "It was slow at 03:00 last night" | `sar` is the only local time machine you get. Enable `sysstat` on every host *before* you need it — you cannot collect the past retroactively |
+| `dmesg -T \| grep -i -E 'oom\|killed process'` | Kernel OOM-killer decisions | A process vanished with no error in its own log | The kernel kills by `oom_score`, so the biggest consumer dies — often not the leaking one. This is exactly what surfaces as `OOMKilled` in Kubernetes |
+| `pmap -x PID`, `/proc/PID/status`, `/proc/PID/limits` | Real memory map and the limits actually in force on a running process | Memory growth analysis; "which limit is it hitting?" | `/proc/PID/limits` shows the effective ceiling, not what your shell would have given it — the fastest way to settle a ulimit argument |
+| `ls /proc/PID/fd \| wc -l`, `lsof -p PID \| wc -l` | File-descriptor count for a process | Catch an fd leak before it hits the ceiling and takes the service down | Trend it. A slowly rising fd count is a leak; a flat high count is just a busy connection pool |
+| `strace -c -p PID`, `strace -f -e trace=network -p PID` | Syscall profile of a hung or slow process | Process stuck in `D` state with no logs and no clue | Real overhead — last resort, short bursts, never casually on a hot production process. `-c` summarises instead of flooding |
+| `systemd-cgtop`, `/sys/fs/cgroup/...` | Resource accounting per cgroup | Container CPU throttling and memory limits | This is the same accounting a container runtime and Kubernetes read — `container_cpu_cfs_throttled_seconds` and `OOMKilled` both originate here |
+| `nproc`, `lscpu`, `lsblk`, `lsmem`, `free -h` | Hardware inventory | Right-sizing an instance type before you scale up | Capacity decisions start with knowing what you already have — vCPU count, NUMA layout, disk topology |
+
+### 0e. The scenario chains interviewers actually ask for
+
+| Scenario they describe | The chain you walk | What you say while doing it |
+|---|---|---|
+| "The application is unreachable" | `systemctl status app` → `ss -tulnp \| grep :443` → `curl -Iv localhost:443` → `iptables -L -n -v` / SG / NSG → `ip r` + `dig` → app logs | Process → listener → local response → firewall → route/DNS → application. Refused means no listener; timeout means firewall or route |
+| "The server is slow" | `uptime` → `top` (check `%wa`) → `vmstat 1` (swap, run queue) → `iostat -xz 1` (disk) → `pidstat`/`iotop` (attribute) → `sar` (was it always?) | Saturated on what — CPU, memory, or I/O? Only then attribute it to a process, then check whether it is new |
+| "The disk is full" | `df -hT` → `df -i` (inodes) → `du -h --max-depth=1` walking down → `lsof +L1` (deleted-but-open) → rotate/clean → fix logrotate or retention | Free space and free inodes are two separate exhaustions, and space that `du` cannot see is held open by a process |
+| "A process was killed and nobody knows why" | `dmesg -T \| grep -i oom` → `journalctl -u svc --since` → `/proc/PID/limits` → cgroup/container memory limit → `free -h` trend | The kernel logs the kill, the app cannot. Then decide: raise the limit or fix the leak |
+| "It works from my machine but not from the server" | `getent hosts name` → `dig @<resolver> name` → `nc -zv host port` → `curl -w` timing split → `openssl s_client` | Resolution, then reachability, then latency breakdown, then TLS. Four layers, four commands, in that order |
 
 ---
 
@@ -257,7 +353,128 @@ Covers all 197 labs across `100DaysofDevops` (100), `100DaysofK8s` (15), `100Day
 
 ---
 
-## 9. Cross-cutting architecture story (the "bigger scope" answer)
+## 9. AWS — `100DaysofAWS/01–50`
+
+Every lab pinned to `us-east-1` on the `aws-client` host with time-boxed session credentials. The recurring pattern across all fifty: **`Name` is a tag, not a native field** — you resolve the real ID (`InstanceId`, `VolumeId`, `AllocationId`) from `--filters "Name=tag:Name,Values=..."` before you can act on the resource. Say that once in an interview and you sound like someone who has actually used the CLI.
+
+### 9a. Identity, access & encryption
+
+| # | Concept | Real-time use | Key commands | Architecture (bigger scope) |
+|---|---|---|---|---|
+| 16 | IAM user | A persistent identity for a person or legacy app | `aws iam create-user --user-name x`, `aws iam get-user` | IAM is **global**, not regional. A new user has zero permissions and zero credentials — deliberately useless until you grant something |
+| 17 | IAM group | Permission container; users inherit from membership | `aws iam create-group --group-name x`, `aws iam add-user-to-group` | Permissions belong on groups and roles, never on individual users. That is the difference between an estate you can audit and one you cannot |
+| 18 | Customer-managed policy | Custom read-only EC2 access as a reusable JSON document | `aws iam create-policy --policy-name x --policy-document file://p.json`, `"Action": "ec2:Describe*"` | Policy = Effect + Action + Resource (+ Condition). `Describe*` calls do not support resource-level scoping, so read-only policies legitimately use `"Resource": "*"` |
+| 19 | Attach policy to user | Wiring an identity to a permission set | `aws iam list-policies --scope Local`, `aws iam attach-user-policy --policy-arn` | You attach by **ARN**, not by name; `--scope Local` distinguishes your policies from AWS-managed ones. Attachment is additive — effective permission is the union, minus any explicit Deny |
+| 20 | IAM role + trust policy | An identity that is *assumed*, not logged into | `aws iam create-role --assume-role-policy-document`, `aws iam attach-role-policy` | Two policies per role: **trust** (who may assume it) and **permission** (what it can then do). Roles issue short-lived STS credentials — the reason they beat access keys everywhere |
+| 37 | EC2 → instance profile → S3 | Give an instance S3 access with no keys on disk | `aws iam create-instance-profile`, `add-role-to-instance-profile`, `aws ec2 associate-iam-instance-profile` | The piece everyone misses: an instance attaches to an **instance profile**, which wraps the role. Credentials arrive via IMDS and auto-rotate. Same idea as Azure Managed Identity and GKE Workload Identity |
+| 41 | KMS symmetric key | Encrypt/decrypt sensitive data with a managed key | `aws kms create-key`, `aws kms create-alias --alias-name alias/x`, `aws kms encrypt/decrypt` | Key material never leaves KMS — you send data to the key, not the key to your data. Direct encrypt caps at 4 KB; beyond that you use envelope encryption with a data key. The human name is an **alias**, not a property |
+
+### 9b. Compute — EC2 lifecycle
+
+| # | Concept | Real-time use | Key commands | Architecture (bigger scope) |
+|---|---|---|---|---|
+| 01 | Key pair | SSH credential for Linux instances | `aws ec2 create-key-pair --key-type rsa --key-format pem --query KeyMaterial --output text > k.pem`, `chmod 400` | AWS stores only the public key; the private key is shown **once, ever**. Key pairs are regional. At scale you replace SSH entirely with SSM Session Manager — no keys, no port 22, full audit trail |
+| 06, 21 | Launch an instance | Standing up a server from an AMI | `aws ssm get-parameters --names /aws/service/ami-amazon-linux-latest/...` then `aws ec2 run-instances --image-id --instance-type t2.micro --key-name --security-group-ids --tag-specifications` | Resolve the AMI dynamically through SSM Parameter Store — hardcoded AMI IDs go stale and are region-specific. `run-instances` is the imperative form of what a Terraform `aws_instance` or a launch template declares |
+| 07, 08 | Stop protection | Guard a workload against accidental stop | `aws ec2 modify-instance-attribute --disable-api-stop`, `describe-instance-attribute --attribute disableApiStop` | Metadata flag, applied live, no restart. Pair it with tag-based IAM conditions if you want the guard to be policy-enforced rather than advisory |
+| 10 | Termination protection | Guard against irreversible deletion | `aws ec2 modify-instance-attribute --disable-api-termination` | `disableApiStop` blocks stopping, `disableApiTermination` blocks terminating — independent booleans. Terraform's `prevent_destroy` lifecycle rule is the IaC equivalent |
+| 11 | Secondary ENI attach | Extra private IPs, or a separate management plane | `aws ec2 attach-network-interface --device-index 1` | ENIs are subnet-scoped and subnets are AZ-scoped, so the **ENI and instance must share an AZ**. Device index 0 is the primary and cannot be detached |
+| 13 | AMI from an instance | Golden image for repeatable launches | `aws ec2 create-image --instance-id --name x`, `aws ec2 wait image-available` | Immutable infrastructure starts here: bake the image, launch identical copies, never patch in place. `--no-reboot` is faster but risks a filesystem-inconsistent image. Packer automates exactly this |
+| 14 | Terminate an instance | Decommissioning | `aws ec2 terminate-instances`, `aws ec2 wait instance-terminated` | `running → shutting-down → terminated`, and root volumes go with it by default (`DeleteOnTermination`). Termination protection returns `OperationNotPermitted` — disable it first |
+| 22 | Passwordless SSH via user data | Bootstrap trust to a fresh instance from a controller | `ssh-keygen -t rsa`, user-data script appending to `/root/.ssh/authorized_keys`, `--user-data file://ud.sh` | AWS AMIs disable root SSH and land imported keys in `ec2-user`/`ubuntu` — user data is the only reliable way to place a key under root. This is the prerequisite for Ansible against fresh instances |
+| 26 | Nginx via user data | Instance that is serving traffic the moment it boots | `--user-data` installing and enabling nginx, SG inbound 80 from `0.0.0.0/0` | User data runs **once, at first boot, as root**. It is the seam between provisioning and configuration — and the reason a slow bootstrap script hurts every autoscaling event |
+| 43 | Auto Scaling Group + ALB | Self-healing, elastic web tier | `aws ec2 create-launch-template`, `aws autoscaling create-auto-scaling-group --target-group-arns`, `put-scaling-policy --policy-type TargetTrackingScaling` | Launch template = blueprint, ASG = desired state, target group = shared registration point, target-tracking policy = the controller holding CPU at 50%. This is a Kubernetes Deployment + HPA, expressed in VMs |
+
+### 9c. Storage — EBS & S3
+
+| # | Concept | Real-time use | Key commands | Architecture (bigger scope) |
+|---|---|---|---|---|
+| 05 | gp3 EBS volume | General-purpose block storage for an instance | `aws ec2 create-volume --volume-type gp3 --size 2 --availability-zone us-east-1a --tag-specifications` | gp3 decouples baseline performance (3,000 IOPS / 125 MiB/s) from size — a 2 GiB gp3 gets full baseline, which gp2 never did. Volumes are **AZ-scoped**, and that constraint drives most attach failures |
+| 12 | Attach a volume | Adding a data disk to a running instance | `aws ec2 attach-volume --device /dev/sdb` | Attach only presents a block device — it does **not** format or mount. The instance and volume must be in the same AZ; that is the number-one attach failure |
+| 50 | Online volume expansion | Grow a full root disk without downtime | `aws ec2 modify-volume --size 12`, then `growpart /dev/xvda 1`, then `resize2fs` / `xfs_growfs` | Three layers, three steps: **block device → partition → filesystem**. Expanding the EBS volume alone changes nothing the OS can see. Identical logic to expanding a Kubernetes PVC |
+| 15 | EBS snapshot | Point-in-time backup, and the basis of AMIs | `aws ec2 create-snapshot --volume-id --description x --tag-specifications`, `aws ec2 wait snapshot-completed` | Snapshots are **incremental** after the first, and can be taken while the volume is in use. Note the split: `--description` is a native field, the name is a `Name` tag |
+| 04 | S3 versioning | Recovery from overwrite and accidental delete | `aws s3api put-bucket-versioning --versioning-configuration Status=Enabled` | Bucket-level, off by default, and **one-way**: once enabled you can only suspend, never return to unversioned. Delete writes a marker instead of destroying data. Pair with lifecycle rules or old versions become a cost line |
+| 23 | S3 → S3 migration | Move or consolidate bucket contents | `aws s3 sync s3://src s3://dst`, then compare object counts | `sync` is incremental and copies **server-side** — bytes never traverse your host. In `us-east-1` you must omit `--create-bucket-configuration`; every other region requires it |
+| 39 | S3 static website hosting | Serving a static site with no servers at all | `aws s3api delete-public-access-block`, `put-bucket-policy` (`s3:GetObject` for `*`), `put-bucket-website` | Public access needs **three** independent things: Block Public Access off, a bucket policy allowing GetObject, and website hosting enabled. Miss one and you get 403. The website endpoint (`s3-website-<region>`) is not the REST endpoint — and only the REST endpoint supports HTTPS, which is why CloudFront fronts it in production |
+
+### 9d. Networking — VPC & load balancing
+
+| # | Concept | Real-time use | Key commands | Architecture (bigger scope) |
+|---|---|---|---|---|
+| 02 | Security group | Stateful instance-level firewall | `aws ec2 create-security-group --vpc-id`, `authorize-security-group-ingress --protocol tcp --port 80 --cidr 0.0.0.0/0` | **Stateful**: allow inbound and the return traffic is automatic. Default is deny-all in, allow-all out. SGs can reference other SGs — that is how you say "only the load balancer may reach me" without hardcoding IPs |
+| 03 | Subnet | An AZ-bound slice of the VPC CIDR | `aws ec2 create-subnet --vpc-id --cidr-block 172.31.96.0/20 --availability-zone` | Subnets are **AZ-scoped** — this is where your availability design actually lives. The CIDR must fit inside the VPC and not overlap an existing subnet |
+| 09, 21 | Elastic IP | A static public IPv4 that survives stop/start | `aws ec2 allocate-address`, `aws ec2 associate-address --allocation-id --instance-id` | Allocate ≠ associate — two distinct steps. Auto-assigned public IPs change on every stop/start; EIPs do not. Prefer a load balancer or DNS name over an EIP wherever you can |
+| 27 | Public VPC from scratch | Building a network that can actually reach the internet | `create-vpc`, `create-subnet`, `create-internet-gateway` + `attach-internet-gateway`, `create-route-table` + `create-route --destination-cidr-block 0.0.0.0/0 --gateway-id`, `associate-route-table`, `modify-subnet-attribute --map-public-ip-on-launch` | A subnet is "public" only with **both** a public IP and a `0.0.0.0/0 → IGW` route associated to it. The forgotten route is the classic failure — an auto-assigned public IP that leads nowhere |
+| 45 | NAT Gateway | Outbound internet for private-subnet instances | `aws ec2 create-nat-gateway --subnet-id <public> --allocation-id`, private route table `0.0.0.0/0 → nat-...` | The NAT lives in a **public** subnet and serves the **private** one. Outbound only — nothing on the internet can initiate inward. Managed and HA per-AZ, versus a NAT instance you have to patch and scale yourself. For S3 specifically, a Gateway VPC Endpoint is cheaper and never leaves the AWS backbone |
+| 29 | VPC peering | Private connectivity between two VPCs | `create-vpc-peering-connection`, `accept-vpc-peering-connection`, routes on **both** sides, SG rules for the peer CIDR | The connection object alone is inert. Traffic needs: accepted → routes both directions → SGs allow the peer CIDR. Peering is **non-transitive** and CIDRs must not overlap — the two constraints that push large estates to Transit Gateway |
+| 24, 36 | Application Load Balancer | L7 traffic distribution across healthy backends | `create-load-balancer --subnets <2 AZs>`, `create-target-group --health-check-path`, `register-targets`, `create-listener --default-actions Type=forward` | An ALB requires **≥2 subnets in ≥2 AZs, one of which must contain your target** — otherwise the target reads `unused` and you get 503. Chain the SGs: world → ALB SG, ALB SG → instance SG. Same role as Azure Application Gateway and a Kubernetes Ingress |
+| 40 | VPC reachability troubleshooting | "Port 80 is open but the site times out" | `describe-route-tables` (look for `blackhole`), `describe-internet-gateways`, `describe-network-acls`, `describe-instances` for the public IP | Six layers, any one of which produces an identical timeout: NACL (stateless, needs ephemeral return ports) → SG (stateful) → public IP → route-table association → route to IGW → IGW attached. The lab's root cause was a **blackhole route** — a route pointing at a detached IGW. This is the cloud form of the Linux `ss`/`iptables`/`ip r` walk in section 0 |
+
+### 9e. Databases
+
+| # | Concept | Real-time use | Key commands | Architecture (bigger scope) |
+|---|---|---|---|---|
+| 31 | RDS MySQL, private | Managed relational database for an app tier | `aws rds create-db-instance --engine mysql --db-instance-class db.t3.micro --no-publicly-accessible --max-allocated-storage 22`, `aws rds wait db-instance-available` | Managed = AWS owns patching, backups, failover. "Private" means no public endpoint — only the VPC can reach it. Needs a **DB subnet group** spanning ≥2 AZs, which is what makes Multi-AZ failover possible later |
+| 32 | Snapshot & restore | Clone production data into a test instance | `create-db-snapshot`, `wait db-snapshot-available`, `restore-db-instance-from-db-snapshot`, `wait db-instance-available` | Restore always creates a **new** instance with a **new endpoint** — it never overwrites the source. Which is why an untested restore is not a backup, and why the endpoint belongs behind a DNS name or a secret, not in code |
+| 35 | Two-tier app: EC2 + private RDS | Public web tier talking to a private data tier | SG chain: world → EC2:80, EC2 SG → RDS:3306; PHP `mysqli_connect` to the RDS endpoint | The canonical secure topology, and the one interviewers draw on a whiteboard: **public subnet for the web tier, private subnet for data, security groups referencing each other rather than CIDRs**. The database is never reachable from the internet |
+| 42 | DynamoDB | Serverless NoSQL key-value / document store | `aws dynamodb create-table --key-schema AttributeName=taskId,KeyType=HASH --billing-mode PAY_PER_REQUEST`, `put-item`, `wait table-exists` | You define only the **key schema** — everything else is schema-less per item. The partition key determines data distribution, so a poorly chosen key creates hot partitions. `PAY_PER_REQUEST` removes capacity planning; provisioned mode is cheaper at steady, predictable load |
+
+### 9f. Containers
+
+| # | Concept | Real-time use | Key commands | Architecture (bigger scope) |
+|---|---|---|---|---|
+| 28 | ECR push | Private image registry for your account | `aws ecr create-repository`, `aws ecr get-login-password \| docker login --username AWS --password-stdin <acct>.dkr.ecr.<region>.amazonaws.com`, `docker tag`, `docker push` | The **tag is the destination** — Docker routes on the registry prefix, so an untagged `myapp:latest` never reaches ECR. Auth tokens last 12 hours. In a pipeline the runner authenticates through an IAM role, never stored credentials |
+| 38 | ECS on Fargate from ECR | Run containers with no EC2 instances to manage | `register-task-definition` (with `containerPort`), `create-cluster`, `create-service --launch-type FARGATE --network-configuration "...assignPublicIp=ENABLED"` | Serverless containers: no nodes, no patching, per-task ENI. The two things that break it every time are the **SG not allowing the container port** and **no public IP** on the task. Compare with EKS: ECS is simpler, EKS is portable |
+| 44 | EKS cluster, private endpoint | Managed Kubernetes control plane | `aws eks create-cluster --role-arn <eksClusterRole> --resources-vpc-config subnetIds=...,endpointPublicAccess=false,endpointPrivateAccess=true`, `aws eks wait cluster-active` | AWS runs the API server and etcd; you own networking, IAM, and node groups. Needs subnets in ≥2 AZs. A **private endpoint** means the API server is reachable only from inside the VPC — the standard hardening, and the reason your CI runner has to live in the VPC or reach it via a bastion/VPN |
+
+### 9g. Serverless & event-driven
+
+| # | Concept | Real-time use | Key commands | Architecture (bigger scope) |
+|---|---|---|---|---|
+| 33 | Lambda (console) | Run code with no server, on demand | Function + **execution role** trusting `lambda.amazonaws.com` with `AWSLambdaBasicExecutionRole` | Every Lambda needs an execution role even to write its own logs. Billing is per-invocation and per-GB-second — the model only wins for spiky or event-driven work, not steady high throughput |
+| 34 | Lambda via CLI package | Deploying a function as a zip artifact | `zip function.zip lambda_function.py`, `aws lambda create-function --runtime python3.12 --handler lambda_function.lambda_handler --role --zip-file fileb://function.zip` | The handler string is `file.function` — filename and function name must match it exactly. This is the deployable-artifact form CI/CD actually uses; the console path does not scale past one person |
+| 46 | S3 event → Lambda → S3 + DynamoDB | Auto-process every uploaded file | `aws s3api put-bucket-notification-configuration`, `aws lambda add-permission --principal s3.amazonaws.com --action lambda:InvokeFunction` | **Two** separate wirings, and people configure only the first: the Lambda's *execution role* (what it may do) and the *resource policy* granting S3 permission to invoke it. Event-driven means no polling and no idle cost — but you must design for retries and idempotency |
+| 47 | SNS → SQS priority queues → Lambda | Fan-out with priority handling | `sns create-topic`, `sqs create-queue`, `sns subscribe` with a **filter policy** on a message attribute, queue policy allowing SNS to send | SNS is push fan-out (pub/sub), SQS is a durable pull buffer. Putting a queue between them gives you retries, a DLQ, and back-pressure the topic alone cannot provide. **Filter policies do the routing at the topic**, so the consumer never sees traffic it does not want |
+
+### 9h. Observability, IaC & automation
+
+| # | Concept | Real-time use | Key commands | Architecture (bigger scope) |
+|---|---|---|---|---|
+| 25 | CloudWatch alarm → SNS | Alert when CPU crosses a threshold | `aws cloudwatch put-metric-alarm --metric-name CPUUtilization --namespace AWS/EC2 --dimensions Name=InstanceId,Value=... --statistic Average --period 300 --evaluation-periods 1 --threshold 90 --comparison-operator GreaterThanOrEqualToThreshold --alarm-actions <sns-arn>` | Metric + statistic + period + evaluation periods + threshold is the whole alarm contract — and every one of those five is a tuning decision. Too sensitive and you train the team to ignore it. The alarm action is where the same wire also feeds auto scaling |
+| 49 | Log aggregation across a peering link | Private instance's logs reaching S3 without internet | rsyslog/`aws s3 sync` from the public instance, VPC peering for transport, IAM instance profile `xfusion-s3-role` for S3 write | Collector pattern: private workloads stay isolated, one egress-capable host ships the data, and the credential is a **role on the instance**, not a key in a config file. The managed version of this is the CloudWatch Agent or Fluent Bit |
+| 48 | CloudFormation stack | Declarative provisioning of a Lambda + its role | `aws cloudformation deploy --template-file t.yaml --capabilities CAPABILITY_IAM`, `describe-stacks`, `delete-stack` | AWS-native IaC with managed state and rollback on failure. `CAPABILITY_IAM` is the explicit acknowledgement that the stack creates permissions. Terraform is the multi-cloud alternative with its own state file — CloudFormation keeps state for you and only works on AWS |
+
+### 9i. AWS ↔ Azure ↔ Kubernetes, in one table
+
+Interviewers with a multi-cloud estate ask this directly. Knowing the mapping is what makes your Azure experience count toward an AWS role, and vice versa.
+
+| Capability | AWS | Azure | Kubernetes equivalent |
+|---|---|---|---|
+| Virtual network | VPC | VNet | Cluster pod network (CNI) |
+| Subnet firewall | NACL (stateless) | NSG (stateful) | NetworkPolicy |
+| Instance firewall | Security Group (stateful) | NSG on NIC / ASG | NetworkPolicy on pod labels |
+| Outbound for private subnets | NAT Gateway | NAT Gateway / Azure Firewall | Node egress + egress gateway |
+| L7 load balancing | ALB | Application Gateway | Ingress Controller |
+| L4 load balancing | NLB | Load Balancer (Standard) | Service type `LoadBalancer` |
+| VNet-to-VNet | VPC Peering / Transit Gateway | VNet Peering / Virtual WAN | — |
+| Object storage | S3 | Blob Storage | — (PV via CSI) |
+| Block storage | EBS | Managed Disks | PersistentVolume |
+| Private registry | ECR | ACR | — |
+| Managed Kubernetes | EKS | AKS | — |
+| Serverless containers | Fargate | Container Apps / ACI | Virtual Kubelet |
+| Functions | Lambda | Azure Functions | Knative / KEDA |
+| Managed SQL | RDS | Azure SQL / Flexible Server | — (operators) |
+| NoSQL | DynamoDB | Cosmos DB | — |
+| Secrets | Secrets Manager / SSM | Key Vault | Secret + CSI driver |
+| Key management | KMS | Key Vault keys (HSM) | — |
+| Workload identity, no keys | IAM role + instance profile / IRSA | Managed Identity | ServiceAccount + IRSA/Workload Identity |
+| Native IaC | CloudFormation | ARM / Bicep | Manifests / Helm |
+| Metrics & alerting | CloudWatch | Azure Monitor | Prometheus + Alertmanager |
+| Pub/sub + queue | SNS + SQS | Event Grid + Service Bus | — |
+| Event streaming | Kinesis | Event Hubs | Kafka / Strimzi |
+
+---
+
+## 10. Cross-cutting architecture story (the "bigger scope" answer)
 
 ```
 Developer → Git (branch/PR)
@@ -286,7 +503,7 @@ Developer → Git (branch/PR)
 
 ---
 
-## 10. Gaps in your notes (worth filling before interviews)
+## 11. Gaps in your notes (worth filling before interviews)
 
 | File | Missing topic | Why it matters |
 |---|---|---|
@@ -295,3 +512,6 @@ Developer → Git (branch/PR)
 | `100DaysofTerraform/06.Terrafrom_elastic_ip.md` | Elastic IP creation | Partly covered by `26.Terraform_elsaticip.md` |
 | `100DaysofTerraform/35.Terraform_variablesetup.md` | Variables, tfvars, precedence | Asked in nearly every Terraform interview |
 | `100DaysofAzure/24.vm_deploy_private_vn.md` | Private VNet VM deploy | The secure-topology counterpart to file 23 |
+| `100DaysofAWS/08.AWS_EC2_stop_protection.md` | EC2 stop protection | Empty file — content lives in `07.AWS_EC2_chnage.md`; fold or fill it |
+| `100DaysofAWS/30.AWS_Public_Private_Ec2.md` | Public/private EC2 topology | Empty file, and this is the topology interviewers draw most often |
+| `100DaysofAWS/31.AWS_RDS_MySQL.md` | RDS MySQL | Empty duplicate of `31.AWS_RDS_Mysql.md` — delete one, the case-only clash breaks on case-insensitive filesystems |
