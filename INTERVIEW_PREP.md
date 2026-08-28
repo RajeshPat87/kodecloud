@@ -1,6 +1,6 @@
 # KodeKloud — Interview Prep Master Table
 
-Covers all 247 labs across `100DaysofDevops` (100), `100DaysofAWS` (50), `100DaysofAzure` (47), `100DaysofTerraform` (35), `100DaysofK8s` (15) — plus a Linux command baseline that every troubleshooting question eventually lands on.
+Covers all 247 labs across `100DaysofDevops` (100), `100DaysofAWS` (50), `100DaysofAzure` (47), `100DaysofTerraform` (35), `100DaysofK8s` (15) — plus a Linux command baseline that every troubleshooting question eventually lands on, and the `100DaysofNW` multi-cloud reference deployment with the Kubernetes API portability split (section 11).
 
 **How to use:** Each row is one interview answer. Read *Concept* → say the *Real-time use* → drop the *Command* → close with the *Architecture* line. That last column is what separates a junior answer from a senior one.
 
@@ -503,7 +503,61 @@ Developer → Git (branch/PR)
 
 ---
 
-## 11. Gaps in your notes (worth filling before interviews)
+## 11. Multi-cloud Kubernetes — reference deployment & API portability — `100DaysofNW`
+
+![Production Kubernetes cluster — HA, secure, scalable, observable, automated (drawn for EKS; the same shape holds on AKS, GKE and OKE)](100DaysofNW/Multicloud.jpeg)
+
+*Production Kubernetes cluster — HA, secure, scalable, observable, automated (drawn for EKS; the same shape holds on AKS, GKE and OKE)*
+
+**How to narrate the diagram in 60 seconds:** one VPC/VNet spanning three AZs → public subnets hold the L7/L4 load balancer and NAT, private subnets hold worker nodes, pods and stateful data → the managed control plane (`kube-apiserver` + `etcd` + scheduler + controller-manager) is reached over TLS through a private endpoint or a trusted-CIDR allowlist → compute is one of three node models (managed node groups, self-managed nodes, serverless pods) → resilience comes from requests/limits, probes, PodDisruptionBudgets and topology spread → elasticity from HPA/KEDA for pods and Karpenter/Cluster Autoscaler for nodes → security is pod-level cloud identity, RBAC, NetworkPolicy and KMS-backed secrets → observability, GitOps and DR wrap the whole thing.
+
+Then comes the question that actually separates candidates: **how much of that diagram survives a move to another cloud?** Answer it in two halves — the objects that are 100% portable, and the smaller set where a cloud-specific controller sits behind an identical spec. The second half *is* the migration surface.
+
+### 11a. Table A — identical on every cloud (no controller swap involved)
+
+| API Group / Version | Objects |
+|---|---|
+| `v1` (core) | Namespace, Pod, Service (ClusterIP/NodePort), ConfigMap, Secret, ServiceAccount, Endpoints, Node, LimitRange, ResourceQuota, Event, PersistentVolume/PersistentVolumeClaim (spec itself) |
+| `apps/v1` | Deployment, ReplicaSet, StatefulSet, DaemonSet, ControllerRevision |
+| `batch/v1` | Job, CronJob |
+| `rbac.authorization.k8s.io/v1` | Role, RoleBinding, ClusterRole, ClusterRoleBinding |
+| `networking.k8s.io/v1` | NetworkPolicy, Ingress, IngressClass (objects identical; enforcement/controller behind them differs — see Table B) |
+| `policy/v1` | PodDisruptionBudget |
+| `scheduling.k8s.io/v1` | PriorityClass |
+| `node.k8s.io/v1` | RuntimeClass |
+| `coordination.k8s.io/v1` | Lease |
+| `discovery.k8s.io/v1` | EndpointSlice |
+| `autoscaling/v2` | HorizontalPodAutoscaler |
+| `apiextensions.k8s.io/v1` | CustomResourceDefinition (CRD) |
+| `admissionregistration.k8s.io/v1` | MutatingWebhookConfiguration, ValidatingWebhookConfiguration |
+| `certificates.k8s.io/v1` | CertificateSigningRequest |
+| `storage.k8s.io/v1` | StorageClass, CSIDriver, CSINode, VolumeAttachment (objects identical; provisioner field differs — see Table B) |
+| `snapshot.storage.k8s.io/v1` | VolumeSnapshot, VolumeSnapshotClass, VolumeSnapshotContent |
+| `flowcontrol.apiserver.k8s.io/v1` | FlowSchema, PriorityLevelConfiguration (API Priority and Fairness) |
+| `gateway.networking.k8s.io` | GatewayClass, Gateway, HTTPRoute, GRPCRoute, TCPRoute, ReferenceGrant |
+
+### 11b. Table B — same object, cloud-specific controller/provisioner behind it
+
+| Object | AWS (EKS) | Azure (AKS) | GCP (GKE) | OCI (OKE) |
+|---|---|---|---|---|
+| `Service type: LoadBalancer` | AWS Load Balancer Controller → NLB/ALB; `service.beta.kubernetes.io/aws-load-balancer-*` | Azure cloud-controller-manager → Azure LB; `service.beta.kubernetes.io/azure-load-balancer-*` | GCE cloud provider → Cloud Load Balancer; `cloud.google.com/load-balancer-type` | OCI cloud-controller-manager → Flexible Load Balancer; `oci.oraclecloud.com/load-balancer-*` |
+| `Ingress` | AWS Load Balancer Controller (`IngressClass: alb`) | AGIC (`IngressClass: azure-application-gateway`) or nginx | GKE Ingress via GCE controller (`IngressClass: gce`) | OCI Native Ingress Controller (`IngressClass: oci`) or nginx |
+| `IngressClass` controller field | `ingress.k8s.aws/alb` | `azure/application-gateway` | `k8s.io/ingress-gce` | `oci.oraclecloud.com/native-ingress-controller` |
+| `Gateway` / `HTTPRoute` | AWS Gateway API Controller | Envoy Gateway/Istio (maturing) | GKE Gateway controller (one of the most mature native implementations) | Istio or other supported controller |
+| `StorageClass` provisioner | `ebs.csi.aws.com`, `efs.csi.aws.com` | `disk.csi.azure.com`, `file.csi.azure.com` | `pd.csi.storage.gke.io`, `filestore.csi.storage.gke.io` | `blockvolume.csi.oraclecloud.com`, `fss.csi.oraclecloud.com` |
+| `PersistentVolume` backing | EBS / EFS | Azure Disk / Azure Files | Persistent Disk (PD) / Filestore | OCI Block Volume / File Storage |
+| `CSIDriver` | `ebs.csi.aws.com`, `efs.csi.aws.com` | `disk.csi.azure.com`, `file.csi.azure.com` | `pd.csi.storage.gke.io` | `blockvolume.csi.oraclecloud.com` |
+| `HorizontalPodAutoscaler` custom metrics | CloudWatch adapter | Azure Monitor adapter | Google Cloud Monitoring (Stackdriver) adapter | OCI Monitoring adapter |
+| Cluster Autoscaler (not a native object) | Scales AWS ASG (Auto Scaling Group) | Scales Azure VMSS (Virtual Machine Scale Set) | Scales GCP MIG (Managed Instance Group) | Scales OCI Instance Pool |
+| `ServiceAccount` + cloud IAM | IRSA: `eks.amazonaws.com/role-arn` annotation | Workload Identity: federated credential + `azure.workload.identity/use: "true"` | GKE Workload Identity: `iam.gke.io/gcp-service-account` annotation binding KSA↔GSA | Workload Identity: instance/resource principal, `oci.oraclecloud.com/*` annotation |
+| `NetworkPolicy` enforcement | VPC CNI's policy agent, or Calico/Cilium | Azure CNI + Calico, or Azure Network Policy Manager | GKE Dataplane V2 (Cilium-based) or Calico | Calico or VCN-native policies |
+| `Node` registration | EC2 instance via AWS cloud provider | Azure VM/VMSS via Azure cloud provider | GCE instance via GCP cloud provider | OCI Compute instance via OCI cloud provider |
+
+**Interview soundbite:** "Table A is roughly 40+ object kinds across a dozen API groups that behave identically on every conformant cluster — that's the CNCF conformance guarantee. Table B is the actual migration surface: about ten object types where the spec is the same but the controller reading it is cloud-specific, so a lift-and-shift between clouds is really 'swap the StorageClass provisioner, the Ingress/LoadBalancer controller, and the IAM federation annotation' — not a re-architecture."
+
+---
+
+## 12. Gaps in your notes (worth filling before interviews)
 
 | File | Missing topic | Why it matters |
 |---|---|---|
