@@ -1,6 +1,6 @@
 # KodeKloud — Interview Prep Master Table
 
-Covers all 247 labs across `100DaysofDevops` (100), `100DaysofAWS` (50), `100DaysofAzure` (47), `100DaysofTerraform` (35), `100DaysofK8s` (15) — plus a Linux command baseline that every troubleshooting question eventually lands on, and the `100DaysofNW` multi-cloud reference deployment with the Kubernetes API portability split (section 11).
+Covers all 247 labs across `100DaysofDevops` (100), `100DaysofAWS` (50), `100DaysofAzure` (47), `100DaysofTerraform` (35), `100DaysofK8s` (15) — plus a Linux command baseline that every troubleshooting question eventually lands on, and the `100DaysofNW` multi-cloud reference deployment with the Kubernetes API portability and rate-limiting split (section 11).
 
 **How to use:** Each row is one interview answer. Read *Concept* → say the *Real-time use* → drop the *Command* → close with the *Architecture* line. That last column is what separates a junior answer from a senior one.
 
@@ -503,7 +503,7 @@ Developer → Git (branch/PR)
 
 ---
 
-## 11. Multi-cloud Kubernetes — reference deployment & API portability — `100DaysofNW`
+## 11. Multi-cloud Kubernetes — reference deployment, API portability & rate limiting — `100DaysofNW`
 
 ![Production Kubernetes cluster — HA, secure, scalable, observable, automated (drawn for EKS; the same shape holds on AKS, GKE and OKE)](100DaysofNW/Multicloud.jpeg)
 
@@ -554,6 +554,104 @@ Then comes the question that actually separates candidates: **how much of that d
 | `Node` registration | EC2 instance via AWS cloud provider | Azure VM/VMSS via Azure cloud provider | GCE instance via GCP cloud provider | OCI Compute instance via OCI cloud provider |
 
 **Interview soundbite:** "Table A is roughly 40+ object kinds across a dozen API groups that behave identically on every conformant cluster — that's the CNCF conformance guarantee. Table B is the actual migration surface: about ten object types where the spec is the same but the controller reading it is cloud-specific, so a lift-and-shift between clouds is really 'swap the StorageClass provisioner, the Ingress/LoadBalancer controller, and the IAM federation annotation' — not a re-architecture."
+
+### 11c. Where rate limiting actually gets defined
+
+**The trap:** there is no native rate-limit field on `Service` or `Deployment` — core Kubernetes has no concept of rate limiting at all. It always lives in whatever sits *in front of* the Service: the Ingress controller, a service-mesh proxy, or an API-gateway CRD — as an **annotation or a separate CRD**, never as a field inside the Service/Deployment spec.
+
+| Layer | Where the rate-limit config lives | API / Annotation |
+|---|---|---|
+| Ingress (nginx) | Annotations on the `Ingress` object itself | `nginx.ingress.kubernetes.io/limit-rps`, `limit-connections`, `limit-burst-multiplier` |
+| Ingress (Traefik) | Separate CRD, referenced by the Ingress/IngressRoute via a middleware annotation | `traefik.io/v1alpha1` → `Middleware` (kind: `RateLimit`) |
+| API Gateway (Kong) | Separate CRD, attached via a `konghq.com/plugins` annotation on the Ingress | `configuration.konghq.com/v1` → `KongPlugin` (plugin: `rate-limiting`) |
+| Service Mesh (Istio) | `EnvoyFilter` injecting Envoy's local/global rate limit filter — not `VirtualService`/`DestinationRule` (common misconception) | `networking.istio.io/v1alpha3` → `EnvoyFilter` |
+| Gateway API | Not in the core Gateway API spec — vendor extension policy attached to the `Gateway`/`HTTPRoute` via `targetRef` | e.g. Envoy Gateway's `BackendTrafficPolicy` |
+| GKE-specific | Cloud Armor security policy attached at the load balancer, not the K8s object | `ComputeSecurityPolicy` (GCP resource, not a K8s CRD) |
+| Application-level | App's own config/library — not a K8s API object | Resilience4j, Spring Cloud Gateway, Envoy sidecar config as a ConfigMap |
+
+**nginx Ingress — simplest, and the one most often asked:**
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/limit-rps: "10"              # requests/sec per client IP
+    nginx.ingress.kubernetes.io/limit-connections: "5"       # concurrent connections per IP
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "5"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: app.internal.corp
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: app-svc
+                port:
+                  number: 80
+```
+
+**Traefik — CRD-based, cleaner separation than annotations:**
+
+```yaml
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: app-ratelimit
+spec:
+  rateLimit:
+    average: 100
+    burst: 50
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: app-route
+spec:
+  routes:
+    - match: Host(`app.internal.corp`)
+      kind: Rule
+      middlewares:
+        - name: app-ratelimit
+      services:
+        - name: app-svc
+          port: 80
+```
+
+**Istio — via `EnvoyFilter`, the one people get wrong by hunting for it in `VirtualService`:**
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: app-local-ratelimit
+  namespace: prod
+spec:
+  workloadSelector:
+    labels:
+      app: app-svc
+  configPatches:
+    - applyTo: HTTP_FILTER
+      match:
+        context: SIDECAR_INBOUND
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.local_ratelimit
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+            stat_prefix: http_local_rate_limiter
+            token_bucket:
+              max_tokens: 100
+              tokens_per_fill: 100
+              fill_interval: 60s
+```
+
+**Interview line to close it out:** "Rate limiting is enforced at the edge — Ingress controller, gateway, or mesh sidecar — not on the Service or Deployment object, because those are just endpoint and scheduling abstractions with no request-inspection capability. If asked to design it, the follow-up question to ask back is 'per-client-IP, per-API-key, or per-backend-service?' — that decides whether you reach for nginx annotations (simple IP-based), a mesh EnvoyFilter (identity-aware, mTLS-based), or an API gateway plugin (API-key/tier-based)."
 
 ---
 
