@@ -1814,3 +1814,7 @@ flowchart LR
 | EKS | Old node group still live → shift workloads back, then abandon the new group. Control plane can't be downgraded, so app-level rollback + old nodes is the safety net. |
 | AKS | Blue-green: keep old pool until validated. Surge: no in-flight rollback of control plane; rely on old-pool retention / app rollback. |
 | OpenShift | Keep worker MCPs **paused** until masters validate; a bad control-plane upgrade is caught before workers ever reboot. CVO can roll back to previous only in narrow z-stream cases. |
+
+
+
+![alt text](image.png)
