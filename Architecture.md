@@ -1463,3 +1463,332 @@ flowchart TB
     style AUTO fill:#0d2440,stroke:#0b74de,color:#fff
     style OPS fill:#3a2510,stroke:#f57c00,color:#fff
 
+# Zero-Downtime Kubernetes Upgrade Runbook
+### AWS EKS · Azure AKS · Red Hat OpenShift on OCI
+
+> Interview-ready reference. Same story, three platforms. The pattern the original EKS post describes (pre-check → one minor at a time → control plane first → roll the nodes gradually → validate before deleting anything) is universal. Only the tooling and the "node replacement" primitive change.
+
+---
+
+## 0. The one principle that actually delivers zero downtime
+
+The upgrade mechanics **do not** give you zero downtime. The **application design** does. Say this in an interview and you separate yourself from people reciting commands:
+
+> "Zero downtime wasn't achieved because I upgraded carefully. It was possible because the workloads were already HA — multiple replicas, PodDisruptionBudgets, readiness probes, Multi-AZ spread, and controlled node draining. The upgrade procedure just avoided *breaking* that guarantee."
+
+The five things that must be true on **every** platform before you touch the control plane:
+
+| Requirement | Why it matters during a node drain |
+|---|---|
+| `replicas >= 2` (ideally spread across zones) | A drained node can't take the last replica down |
+| **PodDisruptionBudget** (`minAvailable` / `maxUnavailable`) | Drain *blocks* rather than evicting below the budget |
+| **Readiness probes** | New pods only get traffic once truly ready; no 5xx during reschedule |
+| **Topology spread / Multi-AZ** | One zone/node cycling never removes all capacity |
+| **Graceful termination** (`preStop`, `terminationGracePeriodSeconds`) | In-flight requests finish before the pod dies |
+
+---
+
+## 1. Terminology & primitive mapping (memorize this table)
+
+| Concept | AWS EKS | Azure AKS | OpenShift on OCI |
+|---|---|---|---|
+| Managed control plane | EKS control plane (AWS-managed) | AKS control plane (Azure-managed) | Control plane MachineConfigPool `master` (self-managed on OCI) |
+| Upgrade orchestrator | You / eksctl / API | You / `az aks` / channels | **Cluster Version Operator (CVO)** |
+| Version skew rule | One minor at a time (n+1) | One minor at a time (non-LTS); LTS can skip | One minor at a time; **EUS→EUS** lets workers reboot once across two minors |
+| Cluster add-ons | EKS add-ons (VPC CNI, CoreDNS, kube-proxy) | AKS managed add-ons | **Operators via OLM** + core operators |
+| Worker group | Managed Node Group (MNG) | Node Pool | **MachineConfigPool (MCP)** + MachineSet |
+| Node image | EKS-optimized AMI | AKS node image (Ubuntu / AzureLinux3) | RHCOS boot image |
+| Roll-the-nodes primitive | New MNG + cordon/drain (blue-green) OR MNG version bump | Node pool **max-surge** rolling OR blue-green pool | MCO reconcile, gated by **`maxUnavailable`** (default 1) |
+| Drain gate | PDB honored by `kubectl drain` | PDB + `drain-timeout` | PDB honored by MCO |
+| Version scheme | k8s 1.3x | k8s 1.3x | OCP 4.x (maps to a k8s minor, e.g. 4.16 ≈ 1.29) |
+
+---
+
+## 2. AWS EKS — 1.32 → 1.34 (the reference flow)
+
+### Runbook
+
+**Step 1 — Pre-checks (never skip)**
+```bash
+# EKS Upgrade Insights (built-in readiness checks)
+aws eks list-insights --cluster-name prod-cluster
+aws eks describe-insight --cluster-name prod-cluster --id <insight-id>
+
+# Deprecated / removed API usage in the cluster
+kubectl get apirequestcount 2>/dev/null            # if metrics available
+# or scan manifests / use pluto / kubent
+kubent                                              # kube-no-trouble: flags deprecated APIs
+
+# Add-on + core component versions
+kubectl get pods -n kube-system                     # vpc-cni, coredns, kube-proxy
+kubectl get pdb -A                                  # PodDisruptionBudgets exist?
+kubectl get deploy -A -o wide                       # replica counts
+```
+Check: Upgrade Insights, deprecated APIs, Helm/app compatibility, VPC CNI / CoreDNS / kube-proxy, AWS Load Balancer Controller, PDBs & replicas, monitoring stack. **Then run the whole thing in a lower environment first.**
+
+**Step 2 — Control plane, one minor at a time**
+```bash
+# 1.32 -> 1.33 (control plane only)
+aws eks update-cluster-version --name prod-cluster --kubernetes-version 1.33
+aws eks describe-update --name prod-cluster --update-id <id>   # wait Successful
+
+# Validate, then bump the managed add-ons to versions compatible with 1.33
+aws eks update-addon --cluster-name prod-cluster --addon-name vpc-cni     --addon-version <v>
+aws eks update-addon --cluster-name prod-cluster --addon-name coredns     --addon-version <v>
+aws eks update-addon --cluster-name prod-cluster --addon-name kube-proxy  --addon-version <v>
+```
+
+**Step 3 — Replace worker nodes (blue-green node group)**
+```bash
+# Create a NEW managed node group on an EKS-optimized AMI for 1.33 (don't terminate the old one)
+eksctl create nodegroup -f nodegroup-1.33.yaml
+kubectl get nodes -L eks.amazonaws.com/nodegroup   # confirm new nodes Ready
+
+# Shift workloads gradually — one node at a time
+kubectl cordon <old-node>
+kubectl drain  <old-node> --ignore-daemonsets --delete-emptydir-data --timeout=300s
+# repeat per node; PDBs make drain wait instead of breaking availability
+```
+
+**Step 4 — How downtime is avoided:** multiple replicas + PDBs + readiness probes + Multi-AZ. While one node drains, healthy pods on other nodes keep serving.
+
+**Step 5 — Monitor throughout:** CloudWatch + Prometheus/Grafana — node health, pod restarts, pending pods, CPU/mem, ALB target health, application latency, 5xx.
+
+**Step 6 — Validate before removing anything:** smoke test critical flow (login → account info → API → transaction). Only then delete the old node group. **Repeat the whole cycle 1.33 → 1.34.**
+
+```mermaid
+flowchart TD
+    S(["EKS 1.32"]) --> PC["1 · Pre-checks<br/>Upgrade Insights · deprecated APIs<br/>add-ons · PDBs · replicas"]
+    PC --> LE["Full dry-run in lower env"]
+    LE --> CP["2 · Control plane 1.32 to 1.33"]
+    CP --> AD["Upgrade add-ons<br/>VPC CNI · CoreDNS · kube-proxy"]
+    AD --> NG["3 · New Managed Node Group<br/>EKS-optimized AMI 1.33"]
+    NG --> DR["Cordon then drain OLD nodes<br/>one at a time · PDB gated"]
+    DR --> MO["5 · Monitor<br/>CloudWatch · Prom/Grafana · ALB · 5xx"]
+    MO --> VA["6 · Smoke test critical flows"]
+    VA --> RM["Remove old node group"]
+    RM --> LOOP{"At 1.34?"}
+    LOOP -- "No · repeat 1.33 to 1.34" --> CP
+    LOOP -- "Yes" --> D(["EKS 1.34 · zero downtime"])
+
+    classDef start fill:#f97316,stroke:#9a3412,color:#fff,font-weight:bold
+    classDef check fill:#2563eb,stroke:#1e3a8a,color:#fff
+    classDef ctl fill:#0891b2,stroke:#155e75,color:#fff
+    classDef node fill:#db2777,stroke:#831843,color:#fff
+    classDef mon fill:#ca8a04,stroke:#713f12,color:#fff
+    classDef gate fill:#6b7280,stroke:#374151,color:#fff
+    classDef done fill:#16a34a,stroke:#14532d,color:#fff,font-weight:bold
+    class S start
+    class PC,LE,VA check
+    class CP,AD ctl
+    class NG,DR node
+    class MO mon
+    class LOOP gate
+    class RM check
+    class D done
+```
+
+---
+
+## 3. Azure AKS — 1.32 → 1.34
+
+**Key differences from EKS:** AKS also forbids skipping minor versions on non-LTS clusters (LTS clusters can skip). AKS gives you a native **rolling upgrade with `max-surge`** so you often don't build a blue-green pool by hand — AKS spins up surge nodes, cordons+drains old ones (honoring PDBs), then removes them.
+
+**Step 1 — Pre-checks**
+```bash
+az aks get-upgrades -g myRG -n myAKS -o table          # allowed upgrade paths
+az aks get-versions --location eastus -o table         # available versions
+kubectl get pdb -A
+kubectl get deploy -A -o wide                          # replica counts
+kubent                                                  # deprecated APIs
+```
+> AKS will **block** the upgrade if it detects in-use deprecated APIs (deprecated-API check), which is a safety net EKS doesn't enforce as hard.
+
+**Step 2 — Control plane first (validate API compat before nodes)**
+```bash
+az aks upgrade -g myRG -n myAKS --kubernetes-version 1.33 --control-plane-only
+```
+
+**Step 3 — Node pools — pick a strategy**
+
+*Option A — in-place rolling with surge (most common):*
+```bash
+# Set surge once; persists for future upgrades. 33% = one-third roll in parallel, rest serve traffic.
+az aks nodepool update -g myRG --cluster-name myAKS -n systempool \
+  --max-surge 33% --drain-timeout 30 --node-soak-duration 5
+
+az aks nodepool upgrade -g myRG --cluster-name myAKS -n systempool \
+  --kubernetes-version 1.33
+```
+`max-surge 1` = safest/slowest (default). `max-surge 100%` = fastest, doubles cost. Subnet must have IPs for `(nodes + maxSurge) * (1 + maxPods)`.
+
+*Option B — blue-green node pool (max control / risky workloads):* create a new pool on 1.33, cordon+drain the old pool node-by-node, delete old pool after validation — identical to the EKS approach.
+
+**Step 4 — Downtime avoidance:** same five HA guarantees. `--drain-timeout` + PDBs ensure long-running pods finish; surge nodes mean capacity never dips.
+
+**Step 5 — Monitor:** Azure Monitor / Container Insights + **Azure Managed Prometheus & Grafana** — node readiness, pod restarts, pending pods, CPU/mem, App Gateway/Load Balancer backend health, latency, 5xx.
+
+**Step 6 — Validate, then repeat 1.33 → 1.34.**
+
+```mermaid
+flowchart TD
+    S(["AKS 1.32"]) --> PC["1 · Pre-checks<br/>az aks get-upgrades · PDBs<br/>deprecated-API check blocks upgrade"]
+    PC --> LE["Dry-run in non-prod"]
+    LE --> CP["2 · Control plane only<br/>--control-plane-only to 1.33"]
+    CP --> ST{"Node strategy"}
+    ST -- "surge rolling" --> SU["3a · max-surge 33% + drain-timeout<br/>az aks nodepool upgrade"]
+    ST -- "blue-green" --> BG["3b · New node pool 1.33<br/>cordon + drain old pool"]
+    SU --> MO["5 · Monitor<br/>Container Insights · Managed Prom/Grafana"]
+    BG --> MO
+    MO --> VA["6 · Validate critical flows"]
+    VA --> LOOP{"At 1.34?"}
+    LOOP -- "No · repeat 1.33 to 1.34" --> CP
+    LOOP -- "Yes" --> D(["AKS 1.34 · zero downtime"])
+
+    classDef start fill:#0ea5e9,stroke:#075985,color:#fff,font-weight:bold
+    classDef check fill:#2563eb,stroke:#1e3a8a,color:#fff
+    classDef ctl fill:#0891b2,stroke:#155e75,color:#fff
+    classDef node fill:#db2777,stroke:#831843,color:#fff
+    classDef mon fill:#ca8a04,stroke:#713f12,color:#fff
+    classDef gate fill:#6b7280,stroke:#374151,color:#fff
+    classDef done fill:#16a34a,stroke:#14532d,color:#fff,font-weight:bold
+    class S start
+    class PC,LE,VA check
+    class CP ctl
+    class SU,BG node
+    class MO mon
+    class ST,LOOP gate
+    class D done
+```
+
+---
+
+## 4. Red Hat OpenShift on OCI — e.g. 4.14 → 4.16 (≈ k8s 1.27 → 1.29)
+
+**This is the most different one.** OpenShift is **operator-driven**: you don't roll nodes by hand. The **Cluster Version Operator (CVO)** upgrades all cluster components; the **Machine Config Operator (MCO)** then reconciles nodes per MachineConfigPool, draining/cordoning up to `maxUnavailable` (default **1**) and rebooting each into new RHCOS. On OCI the workers are OCI compute instances backed by MachineSets, but the upgrade flow is pure OpenShift.
+
+**Step 1 — Pre-checks**
+```bash
+oc get clusterversion                                  # current version + channel
+oc adm upgrade                                         # available targets in channel
+oc get co                                              # all ClusterOperators Available/not Degraded
+oc get mcp                                             # MachineConfigPools healthy, Updated=True
+oc get pdb -A
+oc get nodes                                           # all Ready
+```
+Also: review release notes, and **update OLM Operators** to versions compatible with the target — layered/OLM operators are your "add-ons" and can block or break an upgrade. Update the `oc` client to the target version each hop.
+
+**Step 2 — Set channel & upgrade the control plane (CVO)**
+```bash
+# Pick channel: stable-<ver> (safest) / fast-<ver> / eus-<ver>
+oc adm upgrade channel stable-4.15
+oc adm upgrade --to-latest=true            # or --to=4.15.x
+# CVO reconciles operators; this phase does NOT reboot nodes (~60-120 min)
+watch oc get clusterversion
+```
+
+**Step 3 — Worker rollout via MachineConfigPools (this is your "node replacement")**
+```bash
+# MCO drains+cordons up to maxUnavailable nodes at a time, reboots into new RHCOS.
+oc get mcp worker -o jsonpath='{.spec.maxUnavailable}'   # default 1
+
+# Canary / control the blast radius: pause worker pool, verify masters, then unpause
+oc patch mcp/worker --type merge -p '{"spec":{"paused":true}}'
+# ...control plane completes, validate...
+oc patch mcp/worker --type merge -p '{"spec":{"paused":false}}'  # workers roll
+watch oc get mcp
+```
+> **EUS→EUS shortcut** (4.14 → 4.16 in one worker-reboot pass): move to the `eus-4.16` channel, **pause** all non-master MCPs, hop control plane 4.14→4.15→4.16, then **unpause** — workers reboot **once** instead of twice. Huge win for large fleets.
+
+**Step 4 — Downtime avoidance:** MCO honors **PodDisruptionBudgets** during drain, `maxUnavailable=1` means only one worker is ever out, and CVO updates control-plane components in a rolling fashion. Same HA app requirements apply.
+
+**Step 5 — Monitor:** built-in **Prometheus + Grafana / OpenShift Console → Observe**, plus `oc get co`, `oc get mcp`, node conditions, pending pods, route/ingress health, app latency & 5xx.
+
+**Step 6 — Validate before unpausing further pools / declaring done:** smoke test critical routes, `oc get co` all green, then complete remaining pools.
+
+```mermaid
+flowchart TD
+    S(["OCP 4.14 on OCI"]) --> PC["1 · Pre-checks<br/>oc get co / mcp / pdb<br/>update OLM Operators + oc client"]
+    PC --> LE["Dry-run in non-prod"]
+    LE --> CH["2 · Set channel<br/>stable / fast / eus"]
+    CH --> CVO["CVO upgrades control plane<br/>+ cluster operators · no reboot"]
+    CVO --> PAUSE["Pause worker MCPs (canary/EUS)"]
+    PAUSE --> VAL1["Validate masters · oc get co"]
+    VAL1 --> UNP["3 · Unpause worker MCP<br/>MCO drains + reboots · maxUnavailable=1 · PDB gated"]
+    UNP --> MO["5 · Monitor<br/>built-in Prom/Grafana · Console Observe"]
+    MO --> VA["6 · Smoke test routes"]
+    VA --> LOOP{"At 4.16?"}
+    LOOP -- "No · next hop (or EUS one-pass)" --> CH
+    LOOP -- "Yes" --> D(["OCP 4.16 · zero downtime"])
+
+    classDef start fill:#dc2626,stroke:#7f1d1d,color:#fff,font-weight:bold
+    classDef check fill:#2563eb,stroke:#1e3a8a,color:#fff
+    classDef ctl fill:#0891b2,stroke:#155e75,color:#fff
+    classDef node fill:#db2777,stroke:#831843,color:#fff
+    classDef mon fill:#ca8a04,stroke:#713f12,color:#fff
+    classDef gate fill:#6b7280,stroke:#374151,color:#fff
+    classDef done fill:#16a34a,stroke:#14532d,color:#fff,font-weight:bold
+    class S start
+    class PC,LE,VAL1,VA check
+    class CH,CVO ctl
+    class PAUSE,UNP node
+    class MO mon
+    class LOOP gate
+    class D done
+```
+
+---
+
+## 5. Unified mental model (one diagram to rule them all)
+
+```mermaid
+flowchart LR
+    subgraph PHASE1["PRE-FLIGHT"]
+        A["Deprecated APIs<br/>PDBs · replicas<br/>add-on/operator compat"] --> B["Dry-run<br/>lower env"]
+    end
+    subgraph PHASE2["CONTROL PLANE FIRST"]
+        C["Upgrade managed<br/>control plane · n to n+1"] --> E["Upgrade add-ons /<br/>operators to match"]
+    end
+    subgraph PHASE3["ROLL THE NODES"]
+        F["Add capacity<br/>surge / new pool / RHCOS"] --> G["Cordon + drain<br/>gradually · PDB gated"]
+    end
+    subgraph PHASE4["PROVE IT"]
+        H["Monitor<br/>latency · 5xx · pending pods"] --> I["Smoke test<br/>then remove old"]
+    end
+    B --> C
+    E --> F
+    G --> H
+    I --> J{"Target<br/>reached?"}
+    J -- "No · one minor at a time" --> C
+    J -- "Yes" --> K(["Zero-downtime<br/>upgrade complete"])
+
+    classDef p1 fill:#2563eb,stroke:#1e3a8a,color:#fff
+    classDef p2 fill:#0891b2,stroke:#155e75,color:#fff
+    classDef p3 fill:#db2777,stroke:#831843,color:#fff
+    classDef p4 fill:#ca8a04,stroke:#713f12,color:#fff
+    classDef gate fill:#6b7280,stroke:#374151,color:#fff
+    classDef done fill:#16a34a,stroke:#14532d,color:#fff,font-weight:bold
+    class A,B p1
+    class C,E p2
+    class F,G p3
+    class H,I p4
+    class J gate
+    class K done
+```
+
+---
+
+## 6. Interview cheat-sheet (say these lines)
+
+- **Order is non-negotiable:** control plane → add-ons/operators → worker nodes. Upgrading the control plane first validates API compatibility *before* any running workload is touched.
+- **One minor version at a time** on all three (AKS-LTS and OpenShift-EUS are the only skip exceptions, and EUS still hops the control plane sequentially).
+- **The node primitive is what changes:** EKS = new node group + manual cordon/drain (or MNG bump); AKS = `max-surge` rolling (or blue-green pool); OpenShift = MCO reconcile gated by `maxUnavailable`, orchestrated by the CVO.
+- **Never delete the old capacity until smoke tests pass.** Keep a rollback path (old node group / old pool / paused MCP).
+- **Close with the design point:** zero downtime came from HA app design (replicas, PDBs, readiness probes, Multi-AZ, graceful drain), not from the upgrade command itself.
+
+### Rollback quick reference
+| Platform | Rollback lever |
+|---|---|
+| EKS | Old node group still live → shift workloads back, then abandon the new group. Control plane can't be downgraded, so app-level rollback + old nodes is the safety net. |
+| AKS | Blue-green: keep old pool until validated. Surge: no in-flight rollback of control plane; rely on old-pool retention / app rollback. |
+| OpenShift | Keep worker MCPs **paused** until masters validate; a bad control-plane upgrade is caught before workers ever reboot. CVO can roll back to previous only in narrow z-stream cases. |
