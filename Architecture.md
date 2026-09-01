@@ -7,6 +7,11 @@ five-part structure so the three providers can be compared like for like:
 
 Diagrams live in [`100DaysofNW/`](100DaysofNW/).
 
+> **Companion document.** [`ARCHITECTURE-EXPLAINED.md`](ARCHITECTURE-EXPLAINED.md) covers the same
+> concepts from the operator's angle: *why* each one exists, a Mermaid diagram for every entry
+> (including the ones with no JPEG here), and a **symptom → root cause → fix** table plus verification
+> commands for each. Use this file to learn the model; use that one when something is broken.
+
 ---
 
 ## Concept Index
@@ -31,6 +36,11 @@ Diagrams live in [`100DaysofNW/`](100DaysofNW/).
 | **C14** | Load balancer types & key features | Traffic | [§3.14](#c14--load-balancer-types--key-features) |
 | **C15** | Edge networking, listeners & port forwarding | Traffic | [§3.15](#c15--edge-networking-listeners--port-forwarding) |
 | **C16** | Agentic IaC & policy-as-code delivery | Governance | [§4](#4-governance-agentic-iac--policy-as-code-delivery) |
+| **K1** | Production EKS reference architecture | Kubernetes | [Appendix D](#appendix-d--production-eks-reference-architecture) |
+| **K2** | Zero-downtime Kubernetes upgrades (EKS · AKS · OpenShift) | Kubernetes | [Runbook](#zero-downtime-kubernetes-upgrade-runbook) |
+
+Every row above also has an **issues & fixes** entry in
+[`ARCHITECTURE-EXPLAINED.md`](ARCHITECTURE-EXPLAINED.md#index).
 
 ---
 
@@ -1268,6 +1278,9 @@ When traffic does not arrive, walk the hops in order rather than guessing. This 
 | 6 | Is the app listening on that port? | `ss -lntp` on the host |
 | 7 | Is return traffic symmetric? | Asymmetric routing silently breaks stateful inspection |
 
+The same seven hops rendered as a decision tree, with the fix for each branch, is in
+[`ARCHITECTURE-EXPLAINED.md` §A](ARCHITECTURE-EXPLAINED.md#a--debugging-order-as-a-decision-tree).
+
 **Built-in tools:** AWS **VPC Reachability Analyzer** · Azure **Network Watcher** (Connection
 Troubleshoot, Effective Security Rules, Effective Routes) · GCP **Connectivity Tests**. All three
 answer "why can't A reach B" from the control plane without touching the hosts.
@@ -1314,6 +1327,12 @@ variant of the same content captured from the diagram editor.
 
 ---
 
+## Appendix D — Production EKS Reference Architecture
+
+Everything in C1-C15 assembled into one cluster. Walk-through, failure modes, and fixes:
+[`ARCHITECTURE-EXPLAINED.md` §K1](ARCHITECTURE-EXPLAINED.md#k1--production-eks-reference-architecture).
+
+```mermaid
 ---
 title: Production EKS Cluster - HA, Secure, Scalable, Observable, Automated
 ---
@@ -1462,6 +1481,9 @@ flowchart TB
     style OBS fill:#241a45,stroke:#7c4dff,color:#fff
     style AUTO fill:#0d2440,stroke:#0b74de,color:#fff
     style OPS fill:#3a2510,stroke:#f57c00,color:#fff
+```
+
+---
 
 # Zero-Downtime Kubernetes Upgrade Runbook
 ### AWS EKS · Azure AKS · Red Hat OpenShift on OCI
