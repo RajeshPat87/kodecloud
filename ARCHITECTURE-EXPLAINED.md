@@ -1705,3 +1705,350 @@ The ten controls, restated with *why each one is worth the friction it causes*:
 | [C16](#c16--agentic-iac--policy-as-code) Agentic IaC | Every guardrail above existing only as advice |
 | [K1](#k1--production-eks-reference-architecture) EKS reference | Cluster-level assembly mistakes: IP exhaustion, node-role over-permission, flat pod networking |
 | [K2](#k2--zero-downtime-kubernetes-upgrades) Upgrades | Downtime introduced by maintenance rather than by failure |
+
+
+
+# Top 10 AWS VPC Interview Questions — STAR + Diagrams
+
+> **How to use STAR for technical scenarios:** Frame each answer as a short story.
+> **S**ituation = the context, **T**ask = what you had to achieve, **A**ction = the technical
+> steps you took (this is where you prove depth), **R**esult = the outcome + the lesson.
+> Speak the S/T in ~15 seconds, spend most time on A, close crisply on R.
+>
+> _Diagrams below are inline SVG — they render in VS Code preview, Obsidian, Typora and any
+> browser. (GitHub's markdown viewer strips inline SVG, so open locally to see them.)_
+
+---
+
+## Reference architecture (answers Q1 and Q5)
+
+<svg width="100%" viewBox="0 0 680 620" xmlns="http://www.w3.org/2000/svg">
+<style>
+ text{font-family:'Segoe UI',system-ui,-apple-system,sans-serif}
+ .th{font-weight:500;font-size:14px} .ts{font-weight:400;font-size:12px}
+ .arr{stroke:#5F5E5A;stroke-width:1.5;fill:none}
+ .gray rect{fill:#F1EFE8;stroke:#5F5E5A;stroke-width:.5} .gray .th{fill:#2C2C2A} .gray .ts{fill:#5F5E5A}
+ .blue rect{fill:#E6F1FB;stroke:#185FA5;stroke-width:.5} .blue .th{fill:#0C447C} .blue .ts{fill:#185FA5}
+ .teal rect{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.5} .teal .th{fill:#085041} .teal .ts{fill:#0F6E56}
+ .purple rect{fill:#EEEDFE;stroke:#534AB7;stroke-width:.5} .purple .th{fill:#3C3489} .purple .ts{fill:#534AB7}
+ .coral rect{fill:#FAECE7;stroke:#993C1D;stroke-width:.5} .coral .th{fill:#712B13} .coral .ts{fill:#993C1D}
+ .lbl{fill:#5F5E5A;font-weight:400;font-size:12px}
+</style>
+<defs><marker id="a1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<text class="th" x="340" y="26" text-anchor="middle" fill="#2C2C2A">Internet</text>
+<line x1="340" y1="34" x2="340" y2="70" class="arr" marker-end="url(#a1)"/>
+<g class="blue"><rect x="270" y="70" width="140" height="44" rx="8"/><text class="th" x="340" y="93" text-anchor="middle">Internet Gateway</text><text class="ts" x="340" y="108" text-anchor="middle">IGW</text></g>
+<line x1="340" y1="114" x2="340" y2="140" class="arr" marker-end="url(#a1)"/>
+<g class="gray"><rect x="30" y="140" width="620" height="450" rx="20"/><text class="th" x="50" y="168">VPC  10.0.0.0/16</text></g>
+<text class="lbl" x="200" y="192" text-anchor="middle">Availability Zone A</text>
+<text class="lbl" x="490" y="192" text-anchor="middle">Availability Zone B</text>
+<g class="teal"><rect x="60" y="205" width="280" height="90" rx="12"/><text class="th" x="200" y="232" text-anchor="middle">Public subnet</text><text class="ts" x="200" y="250" text-anchor="middle">10.0.1.0/24 · ALB + NAT GW</text><text class="ts" x="200" y="280" text-anchor="middle">route: 0.0.0.0/0 → IGW</text></g>
+<g class="teal"><rect x="360" y="205" width="280" height="90" rx="12"/><text class="th" x="500" y="232" text-anchor="middle">Public subnet</text><text class="ts" x="500" y="250" text-anchor="middle">10.0.2.0/24 · ALB + NAT GW</text><text class="ts" x="500" y="280" text-anchor="middle">route: 0.0.0.0/0 → IGW</text></g>
+<line x1="200" y1="295" x2="200" y2="325" class="arr" marker-end="url(#a1)"/>
+<line x1="500" y1="295" x2="500" y2="325" class="arr" marker-end="url(#a1)"/>
+<g class="purple"><rect x="60" y="325" width="280" height="90" rx="12"/><text class="th" x="200" y="352" text-anchor="middle">Private app subnet</text><text class="ts" x="200" y="370" text-anchor="middle">10.0.11.0/24 · app ASG</text><text class="ts" x="200" y="400" text-anchor="middle">route: 0.0.0.0/0 → NAT GW</text></g>
+<g class="purple"><rect x="360" y="325" width="280" height="90" rx="12"/><text class="th" x="500" y="352" text-anchor="middle">Private app subnet</text><text class="ts" x="500" y="370" text-anchor="middle">10.0.12.0/24 · app ASG</text><text class="ts" x="500" y="400" text-anchor="middle">route: 0.0.0.0/0 → NAT GW</text></g>
+<line x1="200" y1="415" x2="200" y2="445" class="arr" marker-end="url(#a1)"/>
+<line x1="500" y1="415" x2="500" y2="445" class="arr" marker-end="url(#a1)"/>
+<g class="coral"><rect x="60" y="445" width="280" height="90" rx="12"/><text class="th" x="200" y="472" text-anchor="middle">Private DB subnet</text><text class="ts" x="200" y="490" text-anchor="middle">10.0.21.0/24 · RDS primary</text><text class="ts" x="200" y="520" text-anchor="middle">no internet route</text></g>
+<g class="coral"><rect x="360" y="445" width="280" height="90" rx="12"/><text class="th" x="500" y="472" text-anchor="middle">Private DB subnet</text><text class="ts" x="500" y="490" text-anchor="middle">10.0.22.0/24 · RDS standby</text><text class="ts" x="500" y="520" text-anchor="middle">Multi-AZ failover</text></g>
+<text class="lbl" x="340" y="565" text-anchor="middle">SG chain: ALB (443 from 0.0.0.0/0) → App (from ALB SG) → DB (5432 from App SG)</text>
+</svg>
+
+---
+
+## Troubleshooting decision flow (the logic behind Q2, Q3, Q4, Q6, Q8)
+
+<svg width="100%" viewBox="0 0 680 640" xmlns="http://www.w3.org/2000/svg">
+<style>
+ text{font-family:'Segoe UI',system-ui,-apple-system,sans-serif}
+ .th{font-weight:500;font-size:14px} .ts{font-weight:400;font-size:12px}
+ .arr{stroke:#5F5E5A;stroke-width:1.5;fill:none}
+ .gray rect{fill:#F1EFE8;stroke:#5F5E5A;stroke-width:.5} .gray .th{fill:#2C2C2A} .gray .ts{fill:#5F5E5A}
+ .blue rect{fill:#E6F1FB;stroke:#185FA5;stroke-width:.5} .blue .th{fill:#0C447C} .blue .ts{fill:#185FA5}
+ .teal rect{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.5} .teal .th{fill:#085041} .teal .ts{fill:#0F6E56}
+ .amber rect{fill:#FAEEDA;stroke:#854F0B;stroke-width:.5} .amber .th{fill:#633806} .amber .ts{fill:#854F0B}
+ .coral rect{fill:#FAECE7;stroke:#993C1D;stroke-width:.5} .coral .th{fill:#712B13} .coral .ts{fill:#993C1D}
+ .lbl{fill:#5F5E5A;font-weight:400;font-size:12px}
+</style>
+<defs><marker id="a2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<g class="gray"><rect x="230" y="24" width="220" height="44" rx="8"/><text class="th" x="340" y="51" text-anchor="middle">Traffic not flowing</text></g>
+<line x1="340" y1="68" x2="340" y2="96" class="arr" marker-end="url(#a2)"/>
+<g class="blue"><rect x="230" y="96" width="220" height="56" rx="8"/><text class="th" x="340" y="119" text-anchor="middle">1. Route table</text><text class="ts" x="340" y="137" text-anchor="middle">IGW / NAT / local route present?</text></g>
+<line x1="340" y1="152" x2="340" y2="180" class="arr" marker-end="url(#a2)"/>
+<g class="blue"><rect x="230" y="180" width="220" height="56" rx="8"/><text class="th" x="340" y="203" text-anchor="middle">2. NACL (subnet)</text><text class="ts" x="340" y="221" text-anchor="middle">stateless: port + ephemeral</text></g>
+<line x1="340" y1="236" x2="340" y2="264" class="arr" marker-end="url(#a2)"/>
+<g class="blue"><rect x="230" y="264" width="220" height="56" rx="8"/><text class="th" x="340" y="287" text-anchor="middle">3. Security group</text><text class="ts" x="340" y="305" text-anchor="middle">stateful: allow inbound / SG ref</text></g>
+<line x1="340" y1="320" x2="340" y2="348" class="arr" marker-end="url(#a2)"/>
+<g class="blue"><rect x="230" y="348" width="220" height="56" rx="8"/><text class="th" x="340" y="371" text-anchor="middle">4. Host / app</text><text class="ts" x="340" y="389" text-anchor="middle">listening? OS firewall? DNS?</text></g>
+<line x1="450" y1="124" x2="510" y2="124" class="arr" marker-end="url(#a2)"/>
+<g class="amber"><rect x="510" y="100" width="150" height="48" rx="8"/><text class="ts" x="585" y="120" text-anchor="middle">Q2 private EC2</text><text class="ts" x="585" y="137" text-anchor="middle">no NAT route</text></g>
+<line x1="450" y1="208" x2="510" y2="208" class="arr" marker-end="url(#a2)"/>
+<g class="amber"><rect x="510" y="184" width="150" height="48" rx="8"/><text class="ts" x="585" y="204" text-anchor="middle">Q8 no return</text><text class="ts" x="585" y="221" text-anchor="middle">ephemeral blocked</text></g>
+<line x1="450" y1="292" x2="510" y2="292" class="arr" marker-end="url(#a2)"/>
+<g class="amber"><rect x="510" y="268" width="150" height="48" rx="8"/><text class="ts" x="585" y="288" text-anchor="middle">Q4 / Q6</text><text class="ts" x="585" y="305" text-anchor="middle">SG not open</text></g>
+<line x1="230" y1="376" x2="170" y2="376" class="arr" marker-end="url(#a2)"/>
+<g class="coral"><rect x="20" y="352" width="150" height="48" rx="8"/><text class="ts" x="95" y="372" text-anchor="middle">Q3 same subnet</text><text class="ts" x="95" y="389" text-anchor="middle">SG / OS only</text></g>
+<line x1="340" y1="404" x2="340" y2="448" class="arr" marker-end="url(#a2)"/>
+<g class="teal"><rect x="140" y="450" width="400" height="76" rx="12"/><text class="th" x="340" y="478" text-anchor="middle">Confirm with tooling</text><text class="ts" x="340" y="498" text-anchor="middle">VPC Flow Logs → find the REJECT</text><text class="ts" x="340" y="516" text-anchor="middle">Reachability Analyzer → find the blocking hop</text></g>
+<text class="lbl" x="340" y="556" text-anchor="middle">Same-subnet traffic skips route table and NACL — jump straight to SG + host</text>
+<text class="lbl" x="340" y="578" text-anchor="middle">Timeout → network/SG · Connection refused → app not listening</text>
+</svg>
+
+---
+
+## 1. Design a VPC with Public and Private Subnets
+
+**S** — On a project we hosted a public-facing website plus a backend app server that had to stay off the public internet.
+
+**T** — Design the VPC, subnets, route tables and gateways so the web tier is reachable but the app tier is isolated yet still able to pull updates.
+
+**A** —
+- Created a VPC with a `/16` CIDR (e.g. `10.0.0.0/16`) so I had room to grow.
+- **Public subnet** (`10.0.1.0/24`) for the ALB / web tier; **private subnet** (`10.0.2.0/24`) for the app server.
+- Attached an **Internet Gateway (IGW)** to the VPC.
+- Deployed a **NAT Gateway** in the *public* subnet with an Elastic IP — this lets the private tier reach out for patching but blocks inbound.
+- **Route tables:** Public RT → `0.0.0.0/0 → IGW`; Private RT → `0.0.0.0/0 → NAT Gateway`.
+- **Security group chaining:** ALB SG allows `443` from `0.0.0.0/0`; app SG allows traffic *only* from the ALB SG (reference the SG, not a CIDR).
+
+**R** — Web tier publicly reachable, app tier had zero inbound exposure but still patched cleanly. This became my reusable landing-zone pattern. _(See the reference architecture diagram above.)_
+
+---
+
+## 2. Private EC2 Instance Can't Reach the Internet
+
+**S** — A private-subnet EC2 instance was failing `yum update` / package pulls.
+
+**T** — Find why outbound internet was broken and restore it without exposing the instance publicly.
+
+**A** — I walked the outbound path in order:
+1. **Private RT** — confirmed `0.0.0.0/0 → nat-xxxx` (a missing/incorrect route here is the #1 cause).
+2. **NAT Gateway** — state `available`, sitting in a *public* subnet, and has an Elastic IP.
+3. **Public RT (where NAT lives)** — `0.0.0.0/0 → IGW`.
+4. **IGW** — actually attached to the VPC.
+5. **Security Group** — outbound allowed (default allows all; only matters if hardened).
+6. **NACL** — stateless, so needs **outbound** allow *and* **inbound ephemeral ports (1024–65535)** for return traffic.
+
+```bash
+# Quick checks
+aws ec2 describe-route-tables --filters "Name=association.subnet-id,Values=subnet-xxxx"
+aws ec2 describe-nat-gateways --filter "Name=state,Values=available"
+```
+
+**R** — Root cause was a private route table pointing at a NAT that had been recreated with a new ID. Fixed the route, updates flowed, and I added a check to our Terraform to prevent drift.
+
+---
+
+## 3. Two EC2 Instances in the Same Subnet Can't Ping Each Other
+
+**S** — Two app nodes in the *same subnet* couldn't `ping` each other during a health-check debug.
+
+**T** — Identify what was blocking intra-subnet traffic.
+
+**A** — Key insight I called out to the interviewer: **NACLs do NOT apply to traffic within the same subnet** — so despite what many checklists say, NACLs and route tables aren't the culprit here. That leaves:
+- **Security Groups** — SGs don't allow ICMP by default. I added an inbound rule allowing **ICMP** from the peer SG (SGs are stateful, so one inbound rule is enough).
+- **OS-level firewall** — `iptables` / `firewalld` / Windows Firewall can silently drop ICMP.
+
+```bash
+# On the instance
+sudo iptables -L -n
+sudo firewall-cmd --list-all
+```
+
+> If they'd been in *different* subnets, then NACLs (both directions) and route tables would also be in scope.
+
+**R** — SGs were open but `firewalld` was blocking ICMP on one host. Allowed ICMP, ping worked. Bonus point in the interview for knowing the same-subnet NACL nuance.
+
+---
+
+## 4. Application Not Reachable From the Internet
+
+**S** — A service on EC2 behind a security group was timing out from the public internet.
+
+**T** — Verify each layer from the internet down to the app.
+
+**A** — I checked the path top-down (`Internet → IGW → RT → NACL → SG → EC2 → app`):
+1. **IGW** attached to the VPC.
+2. **Public RT** has `0.0.0.0/0 → IGW`.
+3. Instance has a **public IP / Elastic IP** (or is behind a public ALB).
+4. **SG inbound** allows `80/443` from `0.0.0.0/0`.
+5. **NACL** allows inbound `80/443` *and* outbound ephemeral ports for the response.
+6. **App is actually listening**: `ss -tlnp | grep :443`.
+7. If behind an **ALB**: target group health checks green, listener rules correct, ALB SG open.
+
+**R** — The route table on a newly added subnet was missing the IGW route. Added it and traffic flowed — reinforced my habit of validating routing before app config.
+
+---
+
+## 5. Design a VPC for a 3-Tier App (Web / App / DB) — Secure, Scalable, HA
+
+**S** — Needed a production-grade network for a 3-tier application with HA and security baked in.
+
+**T** — Design for high availability, scalability and least-privilege segmentation.
+
+**A** —
+- VPC `10.0.0.0/16` spanning **at least 2 AZs** for HA.
+- **Public subnets** (2 AZs) → ALB only.
+- **Private app subnets** (2 AZs) → app servers in an **Auto Scaling Group**.
+- **Private DB subnets** (2 AZs) → **RDS Multi-AZ**, placed in a **DB subnet group**.
+- **NAT Gateway per AZ** (avoids a single-AZ failure taking out all outbound).
+- **SG chaining (least privilege):** `ALB SG (443 from internet)` → `App SG (from ALB SG)` → `DB SG (3306/5432 from App SG only)`.
+- Route tables per tier; only public subnets route to IGW.
+
+**R** — Delivered a template that survived an AZ impairment with no downtime and scaled the app tier automatically under load. _(This is exactly the reference architecture diagram at the top.)_
+
+---
+
+## 6. Connection Timeout to RDS From EC2 (Same VPC)
+
+**S** — EC2 could resolve the RDS endpoint but connections **timed out** (not "refused").
+
+**T** — Diagnose why, given they're in the same VPC.
+
+**A** — A **timeout** almost always means network/SG, not the DB engine (a refused connection would point at the DB itself). Checks:
+- **RDS SG inbound** allows the DB port (`3306`/`5432`) **from the EC2 security group** — the most common miss.
+- **NACLs** on both subnets allow the port + ephemeral return ports.
+- **Route table** if the tiers are in different subnets.
+- **DB subnet group** spans the right subnets.
+- **DNS**: `enableDnsSupport` + `enableDnsHostnames` on the VPC; connect via the **RDS endpoint DNS name**, not an IP.
+- RDS in `available` state; `Publicly accessible` set correctly for the access pattern.
+
+```bash
+nc -zv myrds.xxxx.rds.amazonaws.com 5432   # confirms reachability
+```
+
+**R** — DB SG referenced the wrong app SG after a redeploy. Corrected the SG reference and connections succeeded.
+
+---
+
+## 7. VPC Peering Between Two VPCs (Different Regions/Accounts)
+
+**S** — Two VPCs — different account and region — needed private instance-to-instance connectivity.
+
+**T** — Establish routed, secure connectivity between them.
+
+**A** —
+- **Verify CIDRs don't overlap** — peering fails outright if they do.
+- Create the **peering connection**; in the other account/region, **accept** the request.
+- **Update route tables on BOTH sides**: `peer-CIDR → pcx-xxxx`.
+- **Security groups**: within same-region/same-account you can reference the peer SG; **cross-region you must use CIDR ranges** (SG referencing isn't supported across regions).
+- **NACLs** on both sides allow the traffic.
+- Enable **DNS resolution** on the peering connection if you need private hostnames.
+- Called out limits: peering is **not transitive**, and at scale (`n(n-1)/2` connections) I'd move to **Transit Gateway**.
+
+<svg width="100%" viewBox="0 0 680 250" xmlns="http://www.w3.org/2000/svg">
+<style>
+ text{font-family:'Segoe UI',system-ui,-apple-system,sans-serif}
+ .th{font-weight:500;font-size:14px} .ts{font-weight:400;font-size:12px}
+ .arr{stroke:#5F5E5A;stroke-width:1.5;fill:none}
+ .teal rect{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.5} .teal .th{fill:#085041} .teal .ts{fill:#0F6E56}
+ .amber rect{fill:#FAEEDA;stroke:#854F0B;stroke-width:.5} .amber .th{fill:#633806}
+ .purple rect{fill:#EEEDFE;stroke:#534AB7;stroke-width:.5} .purple .th{fill:#3C3489}
+ .hd{fill:#2C2C2A;font-weight:500;font-size:14px} .lbl{fill:#5F5E5A;font-weight:400;font-size:12px}
+</style>
+<defs><marker id="a3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<text class="hd" x="185" y="34" text-anchor="middle">Peering — direct mesh</text>
+<g class="teal"><rect x="50" y="66" width="110" height="54" rx="8"/><text class="th" x="105" y="90" text-anchor="middle">VPC-A</text><text class="ts" x="105" y="108" text-anchor="middle">10.0.0.0/16</text></g>
+<g class="teal"><rect x="210" y="66" width="110" height="54" rx="8"/><text class="th" x="265" y="90" text-anchor="middle">VPC-B</text><text class="ts" x="265" y="108" text-anchor="middle">10.1.0.0/16</text></g>
+<line x1="162" y1="93" x2="208" y2="93" class="arr" marker-start="url(#a3)" marker-end="url(#a3)"/>
+<text class="lbl" x="185" y="152" text-anchor="middle">not transitive</text>
+<text class="lbl" x="185" y="172" text-anchor="middle">CIDRs must not overlap</text>
+<text class="lbl" x="185" y="192" text-anchor="middle">add routes on both sides</text>
+<line x1="350" y1="60" x2="350" y2="210" stroke="#B4B2A9" stroke-width="0.5" stroke-dasharray="4 4"/>
+<text class="hd" x="508" y="34" text-anchor="middle">Transit Gateway — hub</text>
+<g class="amber"><rect x="450" y="66" width="116" height="48" rx="8"/><text class="th" x="508" y="94" text-anchor="middle">Transit Gateway</text></g>
+<line x1="508" y1="114" x2="416" y2="153" class="arr" marker-end="url(#a3)"/>
+<line x1="508" y1="114" x2="508" y2="153" class="arr" marker-end="url(#a3)"/>
+<line x1="508" y1="114" x2="600" y2="153" class="arr" marker-end="url(#a3)"/>
+<g class="purple"><rect x="380" y="155" width="72" height="44" rx="8"/><text class="th" x="416" y="181" text-anchor="middle">VPC-1</text></g>
+<g class="purple"><rect x="472" y="155" width="72" height="44" rx="8"/><text class="th" x="508" y="181" text-anchor="middle">VPC-2</text></g>
+<g class="purple"><rect x="564" y="155" width="72" height="44" rx="8"/><text class="th" x="600" y="181" text-anchor="middle">VPC-3</text></g>
+<text class="lbl" x="508" y="224" text-anchor="middle">transitive routing, scales to many VPCs</text>
+</svg>
+
+**R** — Instances communicated privately across accounts. Flagged the non-transitive limit early, which steered the client toward TGW as they grew.
+
+---
+
+## 8. Traffic Reaches the Instance but Responses Don't Return
+
+**S** — Inbound worked (I could hit the instance), but the instance's *outbound* calls got no responses.
+
+**T** — Explain the asymmetry and fix it.
+
+**A** — Classic **stateless NACL / return-traffic** issue:
+- **Security Groups are stateful** — return traffic is auto-allowed. So if outbound works but replies don't return, SGs aren't the problem.
+- **NACLs are stateless** — you must **explicitly allow inbound ephemeral ports `1024–65535`** for responses to come back.
+- Also confirm the **return route** exists in the route table (e.g., a valid `0.0.0.0/0` path back out).
+
+**R** — Added the inbound ephemeral-port rule to the NACL; responses returned immediately. Great chance to demonstrate the **SG (stateful) vs NACL (stateless)** distinction — a favorite follow-up.
+
+---
+
+## 9. Private Access to S3 Without the Internet
+
+**S** — Instances in private subnets needed S3 access without routing over the internet (compliance requirement).
+
+**T** — Design private, secure S3 connectivity.
+
+**A** —
+- Used a **Gateway VPC Endpoint** for S3 (free, and the right choice for S3/DynamoDB). It adds an **AWS-managed prefix-list route** to the subnet route tables — no NAT/IGW involved.
+- **Checks:** route table has the endpoint entry; **endpoint policy** allows the required S3 actions; **S3 bucket policy** permits access (optionally restrict to the endpoint via `aws:sourceVpce`).
+- Contrasted with an **Interface Endpoint (PrivateLink)** — ENI-based, uses SGs, costs per hour + data — which I'd use for most other services but not S3.
+
+<svg width="100%" viewBox="0 0 680 350" xmlns="http://www.w3.org/2000/svg">
+<style>
+ text{font-family:'Segoe UI',system-ui,-apple-system,sans-serif}
+ .th{font-weight:500;font-size:14px} .ts{font-weight:400;font-size:12px}
+ .arr{stroke:#5F5E5A;stroke-width:1.5;fill:none}
+ .gray rect{fill:#F1EFE8;stroke:#5F5E5A;stroke-width:.5} .gray .th{fill:#2C2C2A}
+ .purple rect{fill:#EEEDFE;stroke:#534AB7;stroke-width:.5} .purple .th{fill:#3C3489} .purple .ts{fill:#534AB7}
+ .teal rect{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.5} .teal .th{fill:#085041} .teal .ts{fill:#0F6E56}
+ .green rect{fill:#EAF3DE;stroke:#3B6D11;stroke-width:.5} .green .th{fill:#27500A} .green .ts{fill:#3B6D11}
+ .amber rect{fill:#FAEEDA;stroke:#854F0B;stroke-width:.5} .amber .th{fill:#633806} .amber .ts{fill:#854F0B}
+ .lbl{fill:#5F5E5A;font-weight:400;font-size:12px}
+</style>
+<defs><marker id="a4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<g class="gray"><rect x="30" y="55" width="400" height="150" rx="20"/><text class="th" x="48" y="84">VPC (private)</text></g>
+<g class="purple"><rect x="55" y="100" width="155" height="90" rx="12"/><text class="th" x="132" y="132" text-anchor="middle">Private subnet</text><text class="ts" x="132" y="152" text-anchor="middle">EC2 / app</text><text class="ts" x="132" y="172" text-anchor="middle">no public IP</text></g>
+<g class="teal"><rect x="250" y="100" width="150" height="90" rx="12"/><text class="th" x="325" y="132" text-anchor="middle">S3 gateway</text><text class="ts" x="325" y="152" text-anchor="middle">VPC endpoint</text><text class="ts" x="325" y="172" text-anchor="middle">route: pl-xxxx</text></g>
+<line x1="210" y1="145" x2="248" y2="145" class="arr" marker-end="url(#a4)"/>
+<text class="lbl" x="450" y="130" text-anchor="middle">AWS backbone</text>
+<line x1="400" y1="145" x2="498" y2="145" class="arr" marker-end="url(#a4)"/>
+<g class="green"><rect x="500" y="110" width="145" height="70" rx="12"/><text class="th" x="572" y="140" text-anchor="middle">Amazon S3</text><text class="ts" x="572" y="160" text-anchor="middle">bucket</text></g>
+<text class="lbl" x="340" y="238" text-anchor="middle">No IGW, no NAT — traffic never leaves the AWS network</text>
+<g class="amber"><rect x="45" y="262" width="175" height="48" rx="8"/><text class="th" x="132" y="284" text-anchor="middle">Endpoint policy</text><text class="ts" x="132" y="302" text-anchor="middle">allows S3 actions</text></g>
+<g class="amber"><rect x="250" y="262" width="175" height="48" rx="8"/><text class="th" x="337" y="284" text-anchor="middle">Route table</text><text class="ts" x="337" y="302" text-anchor="middle">has prefix-list route</text></g>
+<g class="amber"><rect x="455" y="262" width="175" height="48" rx="8"/><text class="th" x="542" y="284" text-anchor="middle">Bucket policy</text><text class="ts" x="542" y="302" text-anchor="middle">aws:sourceVpce</text></g>
+</svg>
+
+**R** — Traffic to S3 stayed entirely on the AWS backbone, satisfied the auditor, and removed NAT data-processing cost for S3 traffic.
+
+---
+
+## 10. Monitor and Troubleshoot VPC Network Issues
+
+**S** — Recurring intermittent connectivity issues that were hard to reproduce.
+
+**T** — Build observability to catch and diagnose network problems fast.
+
+**A** — Layered the AWS-native tooling:
+- **VPC Flow Logs** → CloudWatch Logs / S3 to see **ACCEPT/REJECT** per flow (fastest way to spot an SG/NACL drop).
+- **VPC Reachability Analyzer** for static path analysis between a source and destination — tells you exactly which hop blocks traffic.
+- **CloudWatch metrics/alarms** on NAT, ALB, and VPC metrics.
+- **VPC Traffic Mirroring** for deep packet inspection on tricky app-layer issues.
+- **CloudTrail** to catch who changed a route table / SG.
+- `ping` / `traceroute` / `ss` from inside the instance for the last mile.
+
+**R** — Flow Logs revealed a REJECT on a specific port from a NACL that had drifted. Alarmed on REJECT spikes so we'd catch it proactively next time.
+
+---
+
+### Cross-Cutting Talking Points (drop these in to sound senior)
+- **SG = stateful, NACL = stateless** — the single most-tested distinction.
+- **NACLs don't apply to same-subnet traffic.**
+- **Ephemeral ports (1024–65535)** matter for NACL return traffic.
+- **Gateway endpoint** for S3/DynamoDB; **Interface endpoint (PrivateLink)** for everything else.
+- **Peering is not transitive** → Transit Gateway at scale.
+- Troubleshoot **in path order** (routing → NACL → SG → app), and let **Flow Logs + Reachability Analyzer** do the heavy lifting.
+- **Timeout → network/SG; connection refused → app not listening.**
