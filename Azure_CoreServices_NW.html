@@ -1,0 +1,328 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Azure Core Services — Interview Study Pack (STAR)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#12203a; --ink2:#33475f; --mut:#5f7186;
+  --paper:#f4f7fb; --card:#ffffff; --line:#dde5ef;
+  --brand:#0067c0; --brand2:#3a86d6;
+  --s:#64748b; --t:#2563eb; --a:#0d9488; --r:#b45309;
+  --code:#0f1b2d;
+  --sans:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --mono:"IBM Plex Mono","SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.62;-webkit-font-smoothing:antialiased}
+a{color:var(--brand);text-decoration:none}
+.hero{background:linear-gradient(135deg,#0b2a4a 0%,#0067c0 60%,#1f4b99 100%);color:#eef2fb;padding:52px 22px 30px}
+.hero .wrap{max-width:940px;margin:0 auto}
+.kicker{font-family:var(--mono);font-size:.74rem;letter-spacing:.16em;color:#cdd8f2;margin:0 0 12px}
+.hero h1{font-size:clamp(1.9rem,4.6vw,3rem);line-height:1.05;margin:0 0 12px;font-weight:700;letter-spacing:-.02em}
+.hero p{margin:0;max-width:62ch;color:#dde5f6;font-size:1.02rem}
+.meta{margin-top:20px;display:flex;flex-wrap:wrap;gap:8px}
+.meta span{font-family:var(--mono);font-size:.72rem;color:#eaf0fc;border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:5px 11px}
+.toc{position:sticky;top:0;z-index:20;background:rgba(244,247,251,.9);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:10px 14px}
+.toc .wrap{max-width:940px;margin:0 auto;display:flex;gap:7px;overflow-x:auto;scrollbar-width:none}
+.toc .wrap::-webkit-scrollbar{display:none}
+.pill{flex:0 0 auto;display:inline-flex;align-items:center;gap:7px;font-size:.82rem;color:var(--ink2);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 12px;white-space:nowrap}
+.pill span{font-family:var(--mono);font-weight:600;color:var(--brand);font-size:.72rem}
+.pill:hover{border-color:var(--brand);color:var(--brand)}
+main{max-width:940px;margin:0 auto;padding:8px 22px 70px}
+.svc{padding:44px 0;border-bottom:1px solid var(--line)}
+.svc-head{display:flex;gap:18px;align-items:flex-start;margin-bottom:8px}
+.num{font-family:var(--mono);font-weight:600;font-size:1.05rem;color:#fff;background:var(--brand);min-width:46px;height:46px;border-radius:12px;display:grid;place-items:center;letter-spacing:-.03em}
+.svc h2{margin:2px 0 2px;font-size:1.55rem;letter-spacing:-.02em;font-weight:700}
+.tag{margin:0;color:var(--mut);font-size:.95rem}
+.lede{font-size:1.06rem;color:var(--ink);margin:14px 0 16px;max-width:74ch}
+.keys{list-style:none;margin:0 0 22px;padding:0;display:grid;gap:8px}
+.keys li{position:relative;padding:9px 14px 9px 34px;background:var(--card);border:1px solid var(--line);border-radius:10px;font-size:.96rem;color:var(--ink2)}
+.keys li::before{content:"";position:absolute;left:14px;top:16px;width:7px;height:7px;border-radius:2px;background:var(--brand2)}
+.keys b{color:var(--ink);font-weight:600}
+.ref{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin:0 0 24px}
+.ref .rlabel{font-family:var(--mono);font-size:.7rem;letter-spacing:.12em;color:var(--mut);padding:10px 14px;border-bottom:1px solid var(--line);background:#fafbfe;display:flex;justify-content:space-between}
+.ref .rlabel b{color:var(--brand);font-weight:600}
+.ref pre{margin:0;padding:16px;background:var(--code);color:#e6edf5;font-family:var(--mono);font-size:.82rem;line-height:1.7;overflow-x:auto;white-space:pre}
+.ref pre .c{color:#7f9cc0}
+.ref pre .p{color:#8fd3c4}
+.diagram{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 8px 4px;margin-bottom:24px}
+.dlabel{font-family:var(--mono);font-size:.7rem;letter-spacing:.12em;color:var(--mut);padding:6px 10px 2px}
+.mermaid{margin:0;text-align:center;overflow-x:auto}
+.star{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 20px 8px}
+.star-title{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;color:var(--brand);margin-bottom:14px}
+.row{display:flex;gap:14px;margin-bottom:16px;align-items:flex-start}
+.letter{flex:0 0 auto;width:30px;height:30px;border-radius:8px;color:#fff;font-weight:700;display:grid;place-items:center;font-family:var(--mono);font-size:.9rem}
+.letter.s{background:var(--s)} .letter.t{background:var(--t)} .letter.a{background:var(--a)} .letter.r{background:var(--r)}
+.txt{font-size:.99rem;color:var(--ink2)}
+.lab{display:block;font-size:.72rem;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin-bottom:2px}
+.cheat{padding:44px 0}
+.cheat h2{font-size:1.55rem;letter-spacing:-.02em;margin:0 0 6px}
+.cheat .sub{color:var(--mut);margin:0 0 22px}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:26px}
+th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);font-size:.92rem;vertical-align:top}
+th{width:210px;color:var(--brand);font-weight:600}
+td{color:var(--ink2)}
+tr:last-child th,tr:last-child td{border-bottom:none}
+.trick{background:linear-gradient(135deg,#0b2a4a 0%,#0067c0 60%,#1f4b99 100%);color:#eef2fb;border-radius:14px;padding:18px 20px;margin-bottom:28px}
+.trick b{font-family:var(--mono);letter-spacing:.04em}
+.trick small{color:#dbe3f6;display:block;margin-top:6px}
+.qa{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:10px;padding:13px 16px;margin-bottom:12px}
+.qa .q{font-weight:600;margin-bottom:4px}
+.qa .a{color:var(--ink2);font-size:.96rem}
+footer{max-width:940px;margin:0 auto;padding:26px 22px 60px;color:var(--mut);font-size:.85rem;border-top:1px solid var(--line)}
+@media (max-width:560px){.svc-head{gap:12px} th{width:130px}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style></head><body>
+<div class="hero"><div class="wrap">
+  <p class="kicker">AZURE · DEVOPS INTERVIEW STUDY PACK</p>
+  <h1>Azure Core Services, built for the interview room</h1>
+  <p>Eight core service areas — each with a clean explanation, a CLI reference card, an architecture diagram, and a ready-to-speak STAR answer. Ends with a cheat sheet and the highest-yield questions.</p>
+  <div class="meta"><span>8 services</span><span>STAR answers</span><span>Mermaid diagrams</span><span>Azure CLI reference</span></div>
+</div></div>
+<nav class="toc"><div class="wrap"><a class="pill" href="#vm-vmss"><span>01</span>Virtual Machines + Scale Sets</a><a class="pill" href="#vnet"><span>02</span>Virtual Network (VNet)</a><a class="pill" href="#lb-apim"><span>03</span>App Gateway + API Management</a><a class="pill" href="#frontdoor-dns"><span>04</span>Front Door + Azure DNS</a><a class="pill" href="#sql-cosmos"><span>05</span>Azure SQL + Cosmos DB</a><a class="pill" href="#functions"><span>06</span>Azure Functions + Serverless</a><a class="pill" href="#servicebus-eventgrid"><span>07</span>Service Bus + Event Grid</a><a class="pill" href="#azure-monitor"><span>08</span>Azure Monitor + Activity Log</a><a class="pill" href="#cheatsheet"><span>+</span>Cheat sheet</a></div></nav>
+<main>
+    <section id="vm-vmss" class="svc">
+      <header class="svc-head"><div class="num">01</div>
+        <div><h2>Virtual Machines + Scale Sets</h2><p class="tag">Compute that grows and heals itself</p></div></header>
+      <p class="lede">Azure Virtual Machines give you on-demand Linux/Windows servers. Virtual Machine Scale Sets (VMSS) manage a group of identical VMs, scale them in and out automatically, and spread them across fault/update domains and Availability Zones.</p>
+      <ul class="keys"><li><b>VM</b> — pick size (Standard_B/D/E/F series), OS, managed disks; secured by NSG, SSH keys and managed identity.</li><li><b>VMSS</b> holds the instance model and desired capacity; scales on Azure Monitor metrics.</li><li><b>Autoscale rules</b> react to CPU / queue depth; <b>health probes</b> replace unhealthy instances.</li><li>Spread across <b>Availability Zones</b> for HA; use <b>Availability Sets</b> for fault/update-domain isolation.</li><li>Front VMSS with an <b>Azure Load Balancer</b> or <b>Application Gateway</b> for a fault-tolerant tier.</li></ul>
+      <div class="ref"><div class="rlabel"><span>REFERENCE CARD</span><b>Azure CLI</b></div>
+        <pre><span class="c"># Create a scale set behind a load balancer</span>
+az vmss create -g rg -n web-vmss --image Ubuntu2204 \
+  --instance-count 2 --vm-sku Standard_B2s --zones 1 2 3 --lb web-lb
+<span class="c"># Attach an autoscale profile (2 -&gt; 8 on 70% CPU)</span>
+az monitor autoscale create -g rg --resource web-vmss \
+  --resource-type Microsoft.Compute/virtualMachineScaleSets \
+  --min-count 2 --max-count 8 --count 2
+az monitor autoscale rule create -g rg --autoscale-name web-vmss \
+  --scale out 1 --condition &quot;Percentage CPU &gt; 70 avg 5m&quot;</pre></div>
+      <div class="diagram"><div class="dlabel">Architecture</div>
+        <pre class="mermaid">flowchart LR
+    U["Users"] --> LB["Load Balancer / App Gateway"]
+    subgraph VMSS["VM Scale Set  (min 2 / max 8)"]
+      direction TB
+      V1["VM - Zone 1"]
+      V2["VM - Zone 2"]
+      V3["VM - scaled out"]
+    end
+    LB --> V1
+    LB --> V2
+    LB --> V3
+    AM["Azure Monitor - CPU 70%"] --> AS["Autoscale rule"] --> VMSS</pre></div>
+      <div class="star"><div class="star-title">STAR interview answer</div>
+        <div class="row"><div class="letter s">S</div><div class="txt"><span class="lab">Situation</span>A logistics web tier ran on a fixed set of VMs. Peak shipment windows saturated CPU and caused timeouts, and resizing the fleet by hand never caught the spike in time.</div></div>
+        <div class="row"><div class="letter t">T</div><div class="txt"><span class="lab">Task</span>Make the tier elastic and self-healing so it absorbs surges automatically without paying for peak capacity all day.</div></div>
+        <div class="row"><div class="letter a">A</div><div class="txt"><span class="lab">Action</span>I moved the workload to a VMSS behind an Application Gateway spread across three Availability Zones, defined the instance model with a custom image to cut boot time, and set an autoscale profile from 2 to 8 instances triggered at 70% CPU. Health probes replaced unhealthy instances automatically, and I codified the whole thing in Terraform.</div></div>
+        <div class="row"><div class="letter r">R</div><div class="txt"><span class="lab">Result</span>The tier absorbed peak load with no manual action, timeouts disappeared, unhealthy nodes self-healed across zones, and scaling in overnight cut steady-state compute cost by about a third.</div></div>
+      </div>
+    </section>
+    <section id="vnet" class="svc">
+      <header class="svc-head"><div class="num">02</div>
+        <div><h2>Virtual Network (VNet)</h2><p class="tag">Your own isolated, layered network</p></div></header>
+      <p class="lede">A VNet is your private, isolated network in Azure. You control address space, subnets, routing and security, and it is the boundary every other resource connects through.</p>
+      <ul class="keys"><li><b>Subnets</b> split the VNet into public and private tiers, ideally across zones.</li><li><b>NSG</b> = stateful firewall on subnet/NIC; <b>Application Security Groups</b> group NICs by role.</li><li><b>NAT Gateway</b> gives private subnets outbound internet without inbound exposure.</li><li><b>User-Defined Routes</b> and <b>route tables</b> steer traffic (e.g. through a firewall).</li><li><b>Private Endpoints / Service Endpoints</b> reach PaaS (Storage, SQL) privately over the backbone.</li><li><b>VNet peering</b> connects VNets; <b>VPN / ExpressRoute</b> connect on-prem.</li></ul>
+      <div class="ref"><div class="rlabel"><span>REFERENCE CARD</span><b>Azure CLI</b></div>
+        <pre><span class="c"># VNet with an app subnet</span>
+az network vnet create -g rg -n vnet \
+  --address-prefix 10.0.0.0/16 --subnet-name app --subnet-prefix 10.0.1.0/24
+<span class="c"># NSG rule + NAT gateway for private egress</span>
+az network nsg create -g rg -n app-nsg
+az network nat gateway create -g rg -n egress --public-ip-addresses natip
+<span class="c"># Private endpoint to a storage account (traffic stays on the backbone)</span>
+az network private-endpoint create -g rg -n st-pe --vnet-name vnet \
+  --subnet app --private-connection-resource-id &lt;storage-id&gt; --group-id blob</pre></div>
+      <div class="diagram"><div class="dlabel">Architecture</div>
+        <pre class="mermaid">flowchart LR
+    NET["Internet"] --> AGW["App Gateway - public subnet"]
+    AGW --> APP["App subnet - private"]
+    APP --> DB["Data subnet - private"]
+    APP --> NAT["NAT Gateway"] --> NET
+    APP -. private endpoint .-> PAAS["Storage / Azure SQL"]</pre></div>
+      <div class="star"><div class="star-title">STAR interview answer</div>
+        <div class="row"><div class="letter s">S</div><div class="txt"><span class="lab">Situation</span>An inherited Azure estate had app servers and databases on the same flat subnet with public IPs, and PaaS storage was reachable over the public internet. A security review flagged it.</div></div>
+        <div class="row"><div class="letter t">T</div><div class="txt"><span class="lab">Task</span>Re-architect into a secure, tiered VNet enforcing least privilege and passing the audit.</div></div>
+        <div class="row"><div class="letter a">A</div><div class="txt"><span class="lab">Action</span>I designed a 10.0.0.0/16 VNet with separate app and data subnets across zones, put an Application Gateway in the public tier and everything else private, used NSGs and Application Security Groups to allow only tier-to-tier traffic, added a NAT Gateway for controlled egress, and replaced public PaaS access with Private Endpoints. Diagnostic settings shipped flow logs to Log Analytics.</div></div>
+        <div class="row"><div class="letter r">R</div><div class="txt"><span class="lab">Result</span>Databases and storage were no longer internet-reachable, the audit passed, and the private-endpoint traffic stayed on the Microsoft backbone while flow logs gave us the visibility we lacked.</div></div>
+      </div>
+    </section>
+    <section id="lb-apim" class="svc">
+      <header class="svc-head"><div class="num">03</div>
+        <div><h2>App Gateway + API Management</h2><p class="tag">The front door for traffic and APIs</p></div></header>
+      <p class="lede">Azure gives you a layered choice: Load Balancer (L4), Application Gateway (L7 with WAF), and API Management (APIM) as a managed front door for APIs with auth, throttling, caching and versioning.</p>
+      <ul class="keys"><li><b>Azure Load Balancer</b> — L4 TCP/UDP, high throughput, zone-redundant.</li><li><b>Application Gateway</b> — L7 path/host routing, SSL/TLS termination, cookie affinity, built-in WAF.</li><li><b>API Management</b> — publish/secure APIs, subscription keys, rate limits, JWT validation, caching, versions.</li><li>APIM policies transform requests/responses and enforce quotas at the edge.</li><li>Front private backends (AKS, Functions, VMs) through App Gateway + APIM.</li></ul>
+      <div class="ref"><div class="rlabel"><span>REFERENCE CARD</span><b>Azure CLI</b></div>
+        <pre><span class="c"># Application Gateway (L7) with WAF</span>
+az network application-gateway create -g rg -n appgw --sku WAF_v2 \
+  --vnet-name vnet --subnet appgw --public-ip-address agw-ip --priority 100
+<span class="c"># API Management instance</span>
+az apim create -g rg -n org-apim --publisher-email dev@org.com \
+  --publisher-name Org --sku-name Developer</pre></div>
+      <div class="diagram"><div class="dlabel">Architecture</div>
+        <pre class="mermaid">flowchart LR
+    U["Users"] --> AGW["App Gateway - L7 + WAF"]
+    AGW --> B1["Backend pool - /cart"]
+    AGW --> B2["Backend pool - /orders"]
+    C["API clients / partners"] --> APIM["API Management - keys, quota, JWT"]
+    APIM --> FN["Functions / AKS"]</pre></div>
+      <div class="star"><div class="star-title">STAR interview answer</div>
+        <div class="row"><div class="letter s">S</div><div class="txt"><span class="lab">Situation</span>We were splitting a monolith into services on AKS and also had to expose a partner API, but there was no clean L7 routing and no way to protect the public API from abuse.</div></div>
+        <div class="row"><div class="letter t">T</div><div class="txt"><span class="lab">Task</span>Route traffic to the right service and expose a secured, rate-limited partner API.</div></div>
+        <div class="row"><div class="letter a">A</div><div class="txt"><span class="lab">Action</span>I put an Application Gateway with WAF in front of the services for path- and host-based routing and TLS termination with a Key Vault certificate, and fronted the public API with API Management using subscription keys, rate-limit and quota policies, JWT validation, and response caching, reaching private backends inside the VNet.</div></div>
+        <div class="row"><div class="letter r">R</div><div class="txt"><span class="lab">Result</span>Routing became declarative, TLS was offloaded, the WAF blocked common attacks, partner abuse was throttled at the edge, and API caching noticeably reduced backend load.</div></div>
+      </div>
+    </section>
+    <section id="frontdoor-dns" class="svc">
+      <header class="svc-head"><div class="num">04</div>
+        <div><h2>Front Door + Azure DNS</h2><p class="tag">Global delivery and smart DNS</p></div></header>
+      <p class="lede">Azure Front Door is a global entry point and CDN that terminates at the edge and routes to the fastest healthy backend. Azure DNS hosts your domains, and Traffic Manager adds DNS-level routing/failover across regions.</p>
+      <ul class="keys"><li><b>Front Door</b> — global anycast, edge caching, TLS offload, WAF, latency-based routing, health probes.</li><li><b>Azure CDN</b> caches static content near users (or use Front Door's caching).</li><li><b>Azure DNS</b> — authoritative hosting; alias records to Azure resources.</li><li><b>Traffic Manager</b> — DNS routing methods: priority, weighted, performance, geographic.</li><li>Together: DNS resolves to the right endpoint, Front Door delivers it fastest and safest.</li></ul>
+      <div class="ref"><div class="rlabel"><span>REFERENCE CARD</span><b>Azure CLI</b></div>
+        <pre><span class="c"># Front Door (Standard) profile + endpoint</span>
+az afd profile create -g rg --profile-name fd --sku Standard_AzureFrontDoor
+az afd endpoint create -g rg --profile-name fd --endpoint-name web
+<span class="c"># DNS zone + Traffic Manager (performance routing)</span>
+az network dns zone create -g rg -n example.com
+az network traffic-manager profile create -g rg -n tm \
+  --routing-method Performance --unique-dns-name org-web</pre></div>
+      <div class="diagram"><div class="dlabel">Architecture</div>
+        <pre class="mermaid">flowchart LR
+    U["Users - global"] --> DNS["Azure DNS / Traffic Manager"]
+    DNS --> FD["Front Door - edge + WAF"]
+    FD --> O1["Backend - region A"]
+    DNS -. failover .-> O2["Backend - region B"]</pre></div>
+      <div class="star"><div class="star-title">STAR interview answer</div>
+        <div class="row"><div class="letter s">S</div><div class="txt"><span class="lab">Situation</span>A customer portal ran in a single region. Users in other geographies saw high latency, and a regional problem could take the portal offline entirely.</div></div>
+        <div class="row"><div class="letter t">T</div><div class="txt"><span class="lab">Task</span>Cut global latency and add automatic failover so one region is never a single point of failure.</div></div>
+        <div class="row"><div class="letter a">A</div><div class="txt"><span class="lab">Action</span>I put Azure Front Door in front of the app with edge caching, TLS offload and WAF, enabled latency-based routing across two regional origins with health probes, and used Azure DNS with Traffic Manager for DNS-level failover between regions.</div></div>
+        <div class="row"><div class="letter r">R</div><div class="txt"><span class="lab">Result</span>Latency dropped for international users as the edge served most requests, origin load fell, and during a later regional incident traffic failed over automatically with no manual action.</div></div>
+      </div>
+    </section>
+    <section id="sql-cosmos" class="svc">
+      <header class="svc-head"><div class="num">05</div>
+        <div><h2>Azure SQL + Cosmos DB</h2><p class="tag">Pick the right database for the job</p></div></header>
+      <p class="lede">Azure SQL Database is a managed relational engine with built-in HA, automated backups and point-in-time restore. Cosmos DB is a globally distributed, multi-model NoSQL service with single-digit-millisecond latency and turnkey multi-region writes.</p>
+      <ul class="keys"><li><b>Azure SQL</b> — DTU or vCore tiers, active geo-replication, auto-failover groups, PITR.</li><li><b>Azure Database for PostgreSQL/MySQL</b> for open-source relational workloads.</li><li><b>Cosmos DB</b> — serverless or provisioned RU/s, global distribution, five consistency levels, multiple APIs (Core/SQL, Mongo, Cassandra).</li><li>Choose <b>SQL</b> for relational/ACID; <b>Cosmos</b> for global scale and low-latency key-value/document.</li><li>Encrypt at rest by default; use Private Endpoints and managed identity for access.</li></ul>
+      <div class="ref"><div class="rlabel"><span>REFERENCE CARD</span><b>Azure CLI</b></div>
+        <pre><span class="c"># Azure SQL logical server + database</span>
+az sql server create -g rg -n org-sql --admin-user sqladmin --admin-password &#x27;&lt;pwd&gt;&#x27;
+az sql db create -g rg -s org-sql -n appdb --service-objective S1 \
+  --backup-storage-redundancy Geo
+<span class="c"># Cosmos DB account, multi-region</span>
+az cosmosdb create -g rg -n org-cosmos --kind GlobalDocumentDB \
+  --locations regionName=eastus --locations regionName=westeurope \
+  --default-consistency-level Session</pre></div>
+      <div class="diagram"><div class="dlabel">Architecture</div>
+        <pre class="mermaid">flowchart LR
+    APP["Application"] --> PE["Private Endpoint"]
+    PE --> SQL["Azure SQL - primary"]
+    SQL -. geo-replica .-> SEC["Failover group - region B"]
+    APP --> COS["Cosmos DB"]
+    COS --> R1["Region A - write"]
+    COS --> R2["Region B - write"]</pre></div>
+      <div class="star"><div class="star-title">STAR interview answer</div>
+        <div class="row"><div class="letter s">S</div><div class="txt"><span class="lab">Situation</span>Reporting queries were hammering the primary Azure SQL database and slowing transactions, and a session/cart store on the same SQL DB struggled during spikes.</div></div>
+        <div class="row"><div class="letter t">T</div><div class="txt"><span class="lab">Task</span>Protect transactional performance and give the cart a globally scalable, low-latency store.</div></div>
+        <div class="row"><div class="letter a">A</div><div class="txt"><span class="lab">Action</span>I set up an auto-failover group with active geo-replication for HA on Azure SQL and pointed read-heavy reporting at a readable secondary, tuned PITR and geo-redundant backups, then moved sessions and cart to Cosmos DB with Session consistency and a deliberate partition key, connecting both privately via Private Endpoints.</div></div>
+        <div class="row"><div class="letter r">R</div><div class="txt"><span class="lab">Result</span>Transaction latency recovered immediately, failover tested cleanly, the cart handled spikes at single-digit-millisecond latency, and offloading reads to the secondary removed the reporting bottleneck.</div></div>
+      </div>
+    </section>
+    <section id="functions" class="svc">
+      <header class="svc-head"><div class="num">06</div>
+        <div><h2>Azure Functions + Serverless</h2><p class="tag">Run code, not servers</p></div></header>
+      <p class="lede">Azure Functions runs event-driven code without managing servers. It scales automatically and, on the Consumption plan, you pay only for execution time and resources used.</p>
+      <ul class="keys"><li><b>Triggers & bindings</b>: HTTP, Timer, Blob, Queue, Service Bus, Event Grid, Cosmos DB change feed.</li><li><b>Plans</b>: Consumption (scale to zero), Premium (no cold start, VNet), Dedicated (App Service).</li><li>Built-in autoscaling; use <b>Durable Functions</b> for stateful orchestrations.</li><li>Secure with managed identity, Key Vault references and VNet integration.</li><li>Watch <b>cold starts</b> on Consumption — use Premium/pre-warmed instances on latency-sensitive paths.</li></ul>
+      <div class="ref"><div class="rlabel"><span>REFERENCE CARD</span><b>Azure CLI</b></div>
+        <pre><span class="c"># Create a Python function app on the Consumption plan</span>
+az functionapp create -g rg -n org-func \
+  --consumption-plan-location eastus --runtime python \
+  --functions-version 4 --storage-account orgstore
+<span class="c"># Deploy code</span>
+func azure functionapp publish org-func</pre></div>
+      <div class="diagram"><div class="dlabel">Architecture</div>
+        <pre class="mermaid">flowchart LR
+    BLOB["Blob Storage event"] --> FN["Azure Function"]
+    HTTP["HTTP trigger"] --> FN
+    EG["Event Grid / Service Bus"] --> FN
+    FN --> COS["Cosmos DB"]
+    FN --> OUT["Storage / Service Bus"]
+    FN -. failures .-> DLQ["Dead-letter / poison queue"]</pre></div>
+      <div class="star"><div class="star-title">STAR interview answer</div>
+        <div class="row"><div class="letter s">S</div><div class="txt"><span class="lab">Situation</span>A document-processing pipeline ran on always-on App Service instances that sat idle most of the day but fell behind during upload bursts.</div></div>
+        <div class="row"><div class="letter t">T</div><div class="txt"><span class="lab">Task</span>Replace it with something that scales to zero and still absorbs bursts.</div></div>
+        <div class="row"><div class="letter a">A</div><div class="txt"><span class="lab">Action</span>I wired a Blob-created trigger to an Azure Function that processed the file and wrote metadata to Cosmos DB, used a managed identity and Key Vault references for secrets, added a poison-message queue with retries, and put the latency-sensitive path on a Premium plan to eliminate cold starts.</div></div>
+        <div class="row"><div class="letter r">R</div><div class="txt"><span class="lab">Result</span>Compute cost dropped sharply since we paid per execution, upload bursts were absorbed automatically, and we removed all server patching and scaling overhead.</div></div>
+      </div>
+    </section>
+    <section id="servicebus-eventgrid" class="svc">
+      <header class="svc-head"><div class="num">07</div>
+        <div><h2>Service Bus + Event Grid</h2><p class="tag">Decouple, buffer, and fan out</p></div></header>
+      <p class="lede">Azure Service Bus is enterprise messaging with queues and topics for reliable, ordered, transactional processing. Event Grid is a lightweight pub/sub event router. Together they enable scalable, reliable, event-driven systems.</p>
+      <ul class="keys"><li><b>Service Bus queues</b> — point-to-point, at-least-once, sessions for FIFO, dead-letter, duplicate detection.</li><li><b>Service Bus topics/subscriptions</b> — pub/sub with subscription filters.</li><li><b>Event Grid</b> — reactive event distribution from Azure services and custom topics, with retries and dead-lettering.</li><li><b>Storage Queues</b> for simple, high-volume queueing.</li><li>Pattern: publish an event, fan out to multiple subscribers, each processed independently and reliably.</li></ul>
+      <div class="ref"><div class="rlabel"><span>REFERENCE CARD</span><b>Azure CLI</b></div>
+        <pre><span class="c"># Service Bus namespace + queue</span>
+az servicebus namespace create -g rg -n org-sb --sku Standard
+az servicebus queue create -g rg --namespace-name org-sb -n orders \
+  --enable-dead-lettering-on-message-expiration true
+<span class="c"># Event Grid custom topic</span>
+az eventgrid topic create -g rg -n order-events -l eastus</pre></div>
+      <div class="diagram"><div class="dlabel">Architecture</div>
+        <pre class="mermaid">flowchart LR
+    SRC["Order service"] --> TOP["Service Bus topic / Event Grid"]
+    TOP --> S1["Sub - inventory"] --> W1["Worker"]
+    TOP --> S2["Sub - notifications"] --> W2["Email / SMS"]
+    TOP --> S3["Sub - analytics"] --> W3["Consumer"]
+    S1 -. poison .-> DLQ["Dead-letter"]</pre></div>
+      <div class="star"><div class="star-title">STAR interview answer</div>
+        <div class="row"><div class="letter s">S</div><div class="txt"><span class="lab">Situation</span>An order service called inventory, notifications and analytics synchronously, so one slow or failing downstream failed the whole checkout.</div></div>
+        <div class="row"><div class="letter t">T</div><div class="txt"><span class="lab">Task</span>Decouple the flow so an order is accepted instantly and each downstream processes independently and reliably.</div></div>
+        <div class="row"><div class="letter a">A</div><div class="txt"><span class="lab">Action</span>On each order I published to a Service Bus topic and fanned out to subscriptions for inventory, notifications and analytics, each with its own consumer. I used sessions where ordering mattered, tuned lock duration and max-delivery-count, enabled dead-lettering and duplicate detection, and applied subscription filters so consumers only got relevant events.</div></div>
+        <div class="row"><div class="letter r">R</div><div class="txt"><span class="lab">Result</span>Checkout became instant and resilient — a downstream outage no longer failed orders because messages buffered and retried — and new consumers were added later with zero changes to the producer.</div></div>
+      </div>
+    </section>
+    <section id="azure-monitor" class="svc">
+      <header class="svc-head"><div class="num">08</div>
+        <div><h2>Azure Monitor + Activity Log</h2><p class="tag">See it, alert on it, audit it</p></div></header>
+      <p class="lede">Azure Monitor collects metrics and logs, alerts and visualizes them; Log Analytics is the query store and Application Insights the app-level APM. The Activity Log records control-plane operations for governance and auditing.</p>
+      <ul class="keys"><li><b>Metrics + alert rules</b> notify via Action Groups (email, SMS, webhook, PagerDuty, Logic App).</li><li><b>Log Analytics</b> centralizes logs; query with KQL; <b>Container Insights</b> covers AKS.</li><li><b>Application Insights</b> — distributed tracing, dependency and request telemetry.</li><li><b>Activity Log</b> — who did what on the control plane; route to Log Analytics/Storage for retention.</li><li>Set meaningful alerts to avoid fatigue; monitoring is about acting on data, not just collecting it.</li></ul>
+      <div class="ref"><div class="rlabel"><span>REFERENCE CARD</span><b>Azure CLI</b></div>
+        <pre><span class="c"># Log Analytics workspace + metric alert</span>
+az monitor log-analytics workspace create -g rg -n org-law
+az monitor metrics alert create -g rg -n high-cpu \
+  --scopes &lt;vmss-id&gt; --condition &quot;avg Percentage CPU &gt; 80&quot; \
+  --action &lt;action-group-id&gt;
+<span class="c"># App Insights</span>
+az monitor app-insights component create -g rg --app org-ai -l eastus</pre></div>
+      <div class="diagram"><div class="dlabel">Architecture</div>
+        <pre class="mermaid">flowchart LR
+    RES["VMSS / AKS / SQL / Functions"] --> MON["Azure Monitor - metrics & logs"]
+    MON --> AL["Alert rule - CPU / 5xx / latency"]
+    AL --> AG["Action Group"] --> N["Slack / PagerDuty / Email"]
+    RES --> ACT["Activity Log - control plane"] --> LAW["Log Analytics - retention"]</pre></div>
+      <div class="star"><div class="star-title">STAR interview answer</div>
+        <div class="row"><div class="letter s">S</div><div class="txt"><span class="lab">Situation</span>Incidents were being reported by users before we noticed them, and there was no reliable record of who changed what across subscriptions.</div></div>
+        <div class="row"><div class="letter t">T</div><div class="txt"><span class="lab">Task</span>Build proactive monitoring and alerting plus a compliance-grade audit trail.</div></div>
+        <div class="row"><div class="letter a">A</div><div class="txt"><span class="lab">Action</span>I centralized telemetry into Log Analytics, instrumented apps with Application Insights for distributed tracing, created metric and log alerts on CPU, 5xx and latency wired to Action Groups paging Slack and PagerDuty, enabled Container Insights for AKS, and routed the Activity Log to Log Analytics with a diagnostic setting for long-term retention.</div></div>
+        <div class="row"><div class="letter r">R</div><div class="txt"><span class="lab">Result</span>Mean time to detect and recover dropped sharply, we caught issues before customers did, and the Activity Log gave us the audit trail needed for compliance and post-incident RCA.</div></div>
+      </div>
+    </section>
+  <section id="cheatsheet" class="cheat">
+    <h2>Quick cheat sheet</h2>
+    <p class="sub">Service-to-category map, a memory hook, and the questions that come up most.</p>
+    <table><tbody><tr><th>Compute</th><td>Virtual Machines · VM Scale Sets · AKS (Kubernetes) · App Service · Container Apps</td></tr><tr><th>Storage</th><td>Blob (object) · Managed Disks (block) · Azure Files (file) · Archive tier</td></tr><tr><th>Database</th><td>Azure SQL · Azure DB for PostgreSQL/MySQL · Cosmos DB (NoSQL) · Cache for Redis</td></tr><tr><th>Networking & CDN</th><td>VNet · Azure DNS · Front Door / CDN · Load Balancer / App Gateway</td></tr><tr><th>Integration</th><td>Service Bus · Storage Queues · Event Grid · Event Hubs · API Management</td></tr><tr><th>Monitoring & Mgmt</th><td>Azure Monitor · Log Analytics · App Insights · Activity Log · ARM/Bicep (IaC)</td></tr><tr><th>Security & Identity</th><td>Microsoft Entra ID · Key Vault · Managed Identity · NSG · Azure Firewall / WAF</td></tr></tbody></table>
+    <div class="trick"><b>Memory hook — “Compute → Network → Deliver → Data → Serverless → Messaging → Observe”</b><small>VM/VMSS · VNet · Front Door+App Gateway · SQL+Cosmos · Functions · Service Bus+Event Grid · Azure Monitor — walk these seven and you can place almost any Azure service on the spot.</small></div>
+    <h2 style="font-size:1.15rem;margin:0 0 14px">High-yield Q&amp;A</h2>
+    <div class="qa"><div class="q">NSG vs Azure Firewall</div><div class="a">NSG is a free, stateful allow/deny filter on subnets/NICs for basic L3-L4 rules. Azure Firewall is a managed, stateful network firewall with FQDN filtering, threat intelligence and centralized policy for whole VNets.</div></div><div class="qa"><div class="q">Availability Set vs Availability Zone vs VMSS</div><div class="a">Availability Set spreads VMs across fault/update domains in one datacenter. Availability Zones spread across physically separate datacenters in a region. VMSS manages identical VMs and can itself be zone-redundant with autoscaling.</div></div><div class="qa"><div class="q">Load Balancer vs App Gateway vs Front Door</div><div class="a">Load Balancer is regional L4. Application Gateway is regional L7 with WAF and path routing. Front Door is global L7 with anycast, edge caching and WAF.</div></div><div class="qa"><div class="q">Azure SQL vs Cosmos DB</div><div class="a">Azure SQL is managed relational with ACID and SQL. Cosmos DB is globally distributed NoSQL with tunable consistency and single-digit-ms latency; pick it for global scale and key-value/document access.</div></div><div class="qa"><div class="q">Service Bus vs Event Grid vs Event Hubs</div><div class="a">Service Bus is reliable enterprise messaging (queues/topics). Event Grid is reactive pub/sub event routing. Event Hubs is high-throughput streaming/telemetry ingestion.</div></div><div class="qa"><div class="q">Private Endpoint vs Service Endpoint</div><div class="a">Service Endpoint extends the VNet identity to a PaaS service over the backbone but the service keeps a public IP. Private Endpoint gives the PaaS service a private IP inside your VNet, fully removing public exposure.</div></div><div class="qa"><div class="q">How do you make an app highly available on Azure?</div><div class="a">Spread across Availability Zones, VMSS or AKS behind a load balancer, zone-redundant or geo-replicated databases, health probes with automatic failover, and stateless tiers with a shared session store.</div></div>
+  </section>
+</main>
+<footer>Azure interview-ready reference in the same format as the AWS pack. Diagrams render live via Mermaid. CLI snippets are illustrative; STAR scenarios are meant to be adapted to your own DSV / Infosys experience before you speak them.</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<script>
+mermaid.initialize({startOnLoad:true,theme:'base',securityLevel:'loose',
+ flowchart:{curve:'basis',htmlLabels:true,padding:14},
+ themeVariables:{fontFamily:'IBM Plex Sans, sans-serif',fontSize:'13px',
+  primaryColor:'#e7f1fb',primaryTextColor:'#12203a',primaryBorderColor:'#0067c0',
+  lineColor:'#3a86d6',secondaryColor:'#e6f7f4',tertiaryColor:'#fef3e2',
+  clusterBkg:'#f4f7fb',clusterBorder:'#c3ccdb'}});
+</script></body></html>

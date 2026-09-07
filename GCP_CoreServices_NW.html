@@ -1,0 +1,333 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GCP Core Services — Interview Study Pack (STAR)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#12203a; --ink2:#33475f; --mut:#5f7186;
+  --paper:#f4f7fb; --card:#ffffff; --line:#dde5ef;
+  --brand:#1a73e8; --brand2:#0f9d58;
+  --s:#64748b; --t:#2563eb; --a:#0d9488; --r:#b45309;
+  --code:#0f1b2d;
+  --sans:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --mono:"IBM Plex Mono","SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.62;-webkit-font-smoothing:antialiased}
+a{color:var(--brand);text-decoration:none}
+.hero{background:linear-gradient(135deg,#0b2545 0%,#1a73e8 55%,#174ea6 100%);color:#eef2fb;padding:52px 22px 30px}
+.hero .wrap{max-width:940px;margin:0 auto}
+.kicker{font-family:var(--mono);font-size:.74rem;letter-spacing:.16em;color:#cdd8f2;margin:0 0 12px}
+.hero h1{font-size:clamp(1.9rem,4.6vw,3rem);line-height:1.05;margin:0 0 12px;font-weight:700;letter-spacing:-.02em}
+.hero p{margin:0;max-width:62ch;color:#dde5f6;font-size:1.02rem}
+.meta{margin-top:20px;display:flex;flex-wrap:wrap;gap:8px}
+.meta span{font-family:var(--mono);font-size:.72rem;color:#eaf0fc;border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:5px 11px}
+.toc{position:sticky;top:0;z-index:20;background:rgba(244,247,251,.9);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:10px 14px}
+.toc .wrap{max-width:940px;margin:0 auto;display:flex;gap:7px;overflow-x:auto;scrollbar-width:none}
+.toc .wrap::-webkit-scrollbar{display:none}
+.pill{flex:0 0 auto;display:inline-flex;align-items:center;gap:7px;font-size:.82rem;color:var(--ink2);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 12px;white-space:nowrap}
+.pill span{font-family:var(--mono);font-weight:600;color:var(--brand);font-size:.72rem}
+.pill:hover{border-color:var(--brand);color:var(--brand)}
+main{max-width:940px;margin:0 auto;padding:8px 22px 70px}
+.svc{padding:44px 0;border-bottom:1px solid var(--line)}
+.svc-head{display:flex;gap:18px;align-items:flex-start;margin-bottom:8px}
+.num{font-family:var(--mono);font-weight:600;font-size:1.05rem;color:#fff;background:var(--brand);min-width:46px;height:46px;border-radius:12px;display:grid;place-items:center;letter-spacing:-.03em}
+.svc h2{margin:2px 0 2px;font-size:1.55rem;letter-spacing:-.02em;font-weight:700}
+.tag{margin:0;color:var(--mut);font-size:.95rem}
+.lede{font-size:1.06rem;color:var(--ink);margin:14px 0 16px;max-width:74ch}
+.keys{list-style:none;margin:0 0 22px;padding:0;display:grid;gap:8px}
+.keys li{position:relative;padding:9px 14px 9px 34px;background:var(--card);border:1px solid var(--line);border-radius:10px;font-size:.96rem;color:var(--ink2)}
+.keys li::before{content:"";position:absolute;left:14px;top:16px;width:7px;height:7px;border-radius:2px;background:var(--brand2)}
+.keys b{color:var(--ink);font-weight:600}
+.ref{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin:0 0 24px}
+.ref .rlabel{font-family:var(--mono);font-size:.7rem;letter-spacing:.12em;color:var(--mut);padding:10px 14px;border-bottom:1px solid var(--line);background:#fafbfe;display:flex;justify-content:space-between}
+.ref .rlabel b{color:var(--brand);font-weight:600}
+.ref pre{margin:0;padding:16px;background:var(--code);color:#e6edf5;font-family:var(--mono);font-size:.82rem;line-height:1.7;overflow-x:auto;white-space:pre}
+.ref pre .c{color:#7f9cc0}
+.ref pre .p{color:#8fd3c4}
+.diagram{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 8px 4px;margin-bottom:24px}
+.dlabel{font-family:var(--mono);font-size:.7rem;letter-spacing:.12em;color:var(--mut);padding:6px 10px 2px}
+.mermaid{margin:0;text-align:center;overflow-x:auto}
+.star{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 20px 8px}
+.star-title{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;color:var(--brand);margin-bottom:14px}
+.row{display:flex;gap:14px;margin-bottom:16px;align-items:flex-start}
+.letter{flex:0 0 auto;width:30px;height:30px;border-radius:8px;color:#fff;font-weight:700;display:grid;place-items:center;font-family:var(--mono);font-size:.9rem}
+.letter.s{background:var(--s)} .letter.t{background:var(--t)} .letter.a{background:var(--a)} .letter.r{background:var(--r)}
+.txt{font-size:.99rem;color:var(--ink2)}
+.lab{display:block;font-size:.72rem;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin-bottom:2px}
+.cheat{padding:44px 0}
+.cheat h2{font-size:1.55rem;letter-spacing:-.02em;margin:0 0 6px}
+.cheat .sub{color:var(--mut);margin:0 0 22px}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:26px}
+th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);font-size:.92rem;vertical-align:top}
+th{width:210px;color:var(--brand);font-weight:600}
+td{color:var(--ink2)}
+tr:last-child th,tr:last-child td{border-bottom:none}
+.trick{background:linear-gradient(135deg,#0b2545 0%,#1a73e8 55%,#174ea6 100%);color:#eef2fb;border-radius:14px;padding:18px 20px;margin-bottom:28px}
+.trick b{font-family:var(--mono);letter-spacing:.04em}
+.trick small{color:#dbe3f6;display:block;margin-top:6px}
+.qa{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:10px;padding:13px 16px;margin-bottom:12px}
+.qa .q{font-weight:600;margin-bottom:4px}
+.qa .a{color:var(--ink2);font-size:.96rem}
+footer{max-width:940px;margin:0 auto;padding:26px 22px 60px;color:var(--mut);font-size:.85rem;border-top:1px solid var(--line)}
+@media (max-width:560px){.svc-head{gap:12px} th{width:130px}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style></head><body>
+<div class="hero"><div class="wrap">
+  <p class="kicker">GOOGLE CLOUD · DEVOPS INTERVIEW STUDY PACK</p>
+  <h1>GCP Core Services, built for the interview room</h1>
+  <p>Eight core service areas — each with a clean explanation, a gcloud reference card, an architecture diagram, and a ready-to-speak STAR answer. Ends with a cheat sheet and the highest-yield questions.</p>
+  <div class="meta"><span>8 services</span><span>STAR answers</span><span>Mermaid diagrams</span><span>gcloud reference</span></div>
+</div></div>
+<nav class="toc"><div class="wrap"><a class="pill" href="#gce-mig"><span>01</span>Compute Engine + Managed Instance Groups</a><a class="pill" href="#vpc"><span>02</span>VPC + Networking</a><a class="pill" href="#lb-apigw"><span>03</span>Cloud Load Balancing + API Gateway</a><a class="pill" href="#cdn-dns"><span>04</span>Cloud CDN + Cloud DNS</a><a class="pill" href="#cloudsql-firestore"><span>05</span>Cloud SQL + Firestore</a><a class="pill" href="#functions-run"><span>06</span>Cloud Functions + Cloud Run</a><a class="pill" href="#pubsub"><span>07</span>Pub/Sub — Event-Driven</a><a class="pill" href="#monitoring"><span>08</span>Cloud Monitoring + Cloud Logging</a><a class="pill" href="#cheatsheet"><span>+</span>Cheat sheet</a></div></nav>
+<main>
+    <section id="gce-mig" class="svc">
+      <header class="svc-head"><div class="num">01</div>
+        <div><h2>Compute Engine + Managed Instance Groups</h2><p class="tag">Compute that grows and heals itself</p></div></header>
+      <p class="lede">Compute Engine provides configurable VMs. A Managed Instance Group (MIG) runs identical VMs from an instance template, autoscales them, spreads them across zones, and auto-heals failed instances via health checks.</p>
+      <ul class="keys"><li><b>VM</b> — machine types (e2, n2, c3), custom sizes, persistent disks; secured by firewall rules and service accounts.</li><li><b>Instance template</b> defines how VMs are built; the <b>MIG</b> holds target size.</li><li><b>Autoscaler</b> reacts to CPU / load-balancing utilization / custom metrics.</li><li><b>Auto-healing</b> recreates VMs that fail an application health check.</li><li>Regional MIGs spread across zones; front with the global HTTP(S) Load Balancer for HA.</li></ul>
+      <div class="ref"><div class="rlabel"><span>REFERENCE CARD</span><b>gcloud</b></div>
+        <pre><span class="c"># Instance template + regional managed instance group</span>
+gcloud compute instance-templates create web-tpl \
+  --machine-type e2-medium --image-family debian-12 --image-project debian-cloud
+gcloud compute instance-groups managed create web-mig \
+  --template web-tpl --size 2 --region us-central1
+<span class="c"># Autoscale 2 -&gt; 8 at 60% CPU</span>
+gcloud compute instance-groups managed set-autoscaling web-mig \
+  --region us-central1 --min-num-replicas 2 --max-num-replicas 8 \
+  --target-cpu-utilization 0.6</pre></div>
+      <div class="diagram"><div class="dlabel">Architecture</div>
+        <pre class="mermaid">flowchart LR
+    U["Users"] --> LB["HTTP(S) Load Balancer - global"]
+    subgraph MIG["Regional MIG  (min 2 / max 8)"]
+      direction TB
+      V1["VM - zone a"]
+      V2["VM - zone b"]
+      V3["VM - scaled out"]
+    end
+    LB --> V1
+    LB --> V2
+    LB --> V3
+    MON["Autoscaler - CPU 60%"] --> MIG</pre></div>
+      <div class="star"><div class="star-title">STAR interview answer</div>
+        <div class="row"><div class="letter s">S</div><div class="txt"><span class="lab">Situation</span>A media web tier ran on a fixed set of Compute Engine VMs. Traffic spikes saturated CPU and caused errors, and scaling by hand was too slow.</div></div>
+        <div class="row"><div class="letter t">T</div><div class="txt"><span class="lab">Task</span>Make the tier elastic and self-healing so it absorbs surges automatically without paying for peak all day.</div></div>
+        <div class="row"><div class="letter a">A</div><div class="txt"><span class="lab">Action</span>I built an instance template with a custom image, created a regional MIG across zones, and configured the autoscaler from 2 to 8 replicas at 60% CPU. Auto-healing recreated any VM that failed the health check, and I fronted the group with the global HTTP(S) Load Balancer, codifying everything in Terraform.</div></div>
+        <div class="row"><div class="letter r">R</div><div class="txt"><span class="lab">Result</span>The tier absorbed spikes with no manual action, errors disappeared, failed VMs self-healed across zones, and scaling in off-peak cut steady-state cost by about a third.</div></div>
+      </div>
+    </section>
+    <section id="vpc" class="svc">
+      <header class="svc-head"><div class="num">02</div>
+        <div><h2>VPC + Networking</h2><p class="tag">A global network with regional subnets</p></div></header>
+      <p class="lede">A GCP VPC is a global resource; its subnets are regional. You control IP ranges, routes and firewall rules, and Cloud NAT provides outbound access for private instances.</p>
+      <ul class="keys"><li><b>VPC is global</b>; <b>subnets are regional</b> — a key GCP distinction.</li><li><b>Firewall rules</b> are stateful, applied by network tags or service accounts.</li><li><b>Cloud NAT</b> gives private VMs outbound internet with no external IP.</li><li><b>Cloud Router</b> + routes steer traffic; <b>VPC Peering</b> / <b>Shared VPC</b> connect projects.</li><li><b>Private Google Access</b> and <b>Private Service Connect</b> reach Google APIs/services privately.</li><li><b>Cloud VPN / Interconnect</b> connect on-prem.</li></ul>
+      <div class="ref"><div class="rlabel"><span>REFERENCE CARD</span><b>gcloud</b></div>
+        <pre><span class="c"># Custom-mode VPC + regional subnet</span>
+gcloud compute networks create vpc --subnet-mode custom
+gcloud compute networks subnets create app \
+  --network vpc --range 10.0.1.0/24 --region us-central1
+<span class="c"># Firewall rule (by tag) + Cloud NAT for private egress</span>
+gcloud compute firewall-rules create allow-http \
+  --network vpc --allow tcp:80 --target-tags web
+gcloud compute routers create rtr --network vpc --region us-central1
+gcloud compute routers nats create nat --router rtr \
+  --region us-central1 --auto-allocate-nat-external-ips \
+  --nat-all-subnet-ip-ranges</pre></div>
+      <div class="diagram"><div class="dlabel">Architecture</div>
+        <pre class="mermaid">flowchart LR
+    NET["Internet"] --> LB["HTTP(S) LB"]
+    LB --> APP["App subnet - private"]
+    APP --> DB["Data subnet - private"]
+    APP --> NAT["Cloud NAT"] --> NET
+    APP -. private access .-> API["Google APIs / Cloud SQL"]</pre></div>
+      <div class="star"><div class="star-title">STAR interview answer</div>
+        <div class="row"><div class="letter s">S</div><div class="txt"><span class="lab">Situation</span>A project had VMs with external IPs on a default network and reached Google services over the public internet. A review flagged the exposure and lack of segmentation.</div></div>
+        <div class="row"><div class="letter t">T</div><div class="txt"><span class="lab">Task</span>Re-architect into a secure custom VPC enforcing least privilege and passing the review.</div></div>
+        <div class="row"><div class="letter a">A</div><div class="txt"><span class="lab">Action</span>I created a custom-mode VPC with separate regional subnets for app and data, removed external IPs and added Cloud NAT for controlled egress, wrote tag- and service-account-scoped firewall rules for tier-to-tier traffic only, enabled Private Google Access plus Private Service Connect for Cloud SQL, and turned on VPC Flow Logs.</div></div>
+        <div class="row"><div class="letter r">R</div><div class="txt"><span class="lab">Result</span>Instances lost their public exposure, service traffic stayed on Google's backbone, the review passed, and Flow Logs gave us the network visibility we'd been missing.</div></div>
+      </div>
+    </section>
+    <section id="lb-apigw" class="svc">
+      <header class="svc-head"><div class="num">03</div>
+        <div><h2>Cloud Load Balancing + API Gateway</h2><p class="tag">The front door for traffic and APIs</p></div></header>
+      <p class="lede">Cloud Load Balancing offers a global, anycast HTTP(S) load balancer (plus TCP/UDP and internal options). API Gateway (and Apigee for enterprise) is a managed front door for APIs with auth, keys and quotas.</p>
+      <ul class="keys"><li><b>Global external HTTP(S) LB</b> — one anycast IP worldwide, content-based routing via URL maps, managed TLS.</li><li><b>Network / Internal LB</b> for L4 TCP/UDP and internal traffic.</li><li><b>Cloud Armor</b> adds WAF and DDoS protection at the edge.</li><li><b>API Gateway</b> — managed gateway for serverless/backends with API keys and JWT auth.</li><li><b>Apigee</b> — full API management with quotas, monetization and analytics.</li></ul>
+      <div class="ref"><div class="rlabel"><span>REFERENCE CARD</span><b>gcloud</b></div>
+        <pre><span class="c"># Enable CDN on a backend + build a global URL map (abridged)</span>
+gcloud compute backend-services create web-be --global \
+  --protocol HTTP --enable-cdn
+gcloud compute url-maps create web-map --default-service web-be
+gcloud compute target-http-proxies create web-proxy --url-map web-map
+gcloud compute forwarding-rules create web-fr --global \
+  --target-http-proxy web-proxy --ports 80
+<span class="c"># API Gateway from an OpenAPI spec</span>
+gcloud api-gateway apis create orders-api
+gcloud api-gateway gateways create orders-gw --api orders-api \
+  --api-config cfg1 --location us-central1</pre></div>
+      <div class="diagram"><div class="dlabel">Architecture</div>
+        <pre class="mermaid">flowchart LR
+    U["Users"] --> LB["Global HTTP(S) LB + Cloud Armor"]
+    LB --> B1["Backend - /cart"]
+    LB --> B2["Backend - /orders"]
+    C["API clients"] --> AGW["API Gateway - keys, JWT"]
+    AGW --> RUN["Cloud Run / Functions"]</pre></div>
+      <div class="star"><div class="star-title">STAR interview answer</div>
+        <div class="row"><div class="letter s">S</div><div class="txt"><span class="lab">Situation</span>We were moving to microservices on GKE and needed global path-based routing plus a secured public API with quotas.</div></div>
+        <div class="row"><div class="letter t">T</div><div class="txt"><span class="lab">Task</span>Route traffic to the right service worldwide and expose a protected, rate-limited API.</div></div>
+        <div class="row"><div class="letter a">A</div><div class="txt"><span class="lab">Action</span>I used the global external HTTP(S) load balancer with URL maps for path/host routing and a Google-managed TLS certificate, added Cloud Armor for WAF and rate limiting, and put serverless backends behind API Gateway with API keys and JWT auth for external consumers.</div></div>
+        <div class="row"><div class="letter r">R</div><div class="txt"><span class="lab">Result</span>A single anycast IP served users globally with low latency, Cloud Armor blocked common attacks and abusive clients, and the API gateway enforced keys and quotas cleanly at the edge.</div></div>
+      </div>
+    </section>
+    <section id="cdn-dns" class="svc">
+      <header class="svc-head"><div class="num">04</div>
+        <div><h2>Cloud CDN + Cloud DNS</h2><p class="tag">Global delivery and smart DNS</p></div></header>
+      <p class="lede">Cloud CDN caches content at Google's edge to cut latency, riding on the HTTP(S) load balancer. Cloud DNS is a scalable, 100% SLA authoritative DNS service with routing policies and health checks.</p>
+      <ul class="keys"><li><b>Cloud CDN</b> — enabled on a backend service; caches static/dynamic content at the edge.</li><li><b>Cloud DNS</b> — public and private zones, low-latency anycast resolution.</li><li><b>Routing policies</b> — weighted round-robin and geolocation; health checks for failover.</li><li>The global LB anycast IP plus Cloud DNS gives users the nearest healthy entry point.</li><li>Use signed URLs/cookies to protect cached private content.</li></ul>
+      <div class="ref"><div class="rlabel"><span>REFERENCE CARD</span><b>gcloud</b></div>
+        <pre><span class="c"># Enable Cloud CDN on the backend</span>
+gcloud compute backend-services update web-be --global --enable-cdn
+<span class="c"># Managed DNS zone + record</span>
+gcloud dns managed-zones create web-zone --dns-name example.com. \
+  --description &#x27;public zone&#x27;
+gcloud dns record-sets create www.example.com. --zone web-zone \
+  --type A --ttl 300 --rrdatas &lt;lb-ip&gt;</pre></div>
+      <div class="diagram"><div class="dlabel">Architecture</div>
+        <pre class="mermaid">flowchart LR
+    U["Users - global"] --> DNS["Cloud DNS - geo / weighted"]
+    DNS --> CDN["Cloud CDN edge (on the LB)"]
+    CDN --> O1["Backend - region A"]
+    DNS -. failover .-> O2["Backend - region B"]</pre></div>
+      <div class="star"><div class="star-title">STAR interview answer</div>
+        <div class="row"><div class="letter s">S</div><div class="txt"><span class="lab">Situation</span>A global site served assets from one region, so distant users saw slow loads and a regional issue risked downtime.</div></div>
+        <div class="row"><div class="letter t">T</div><div class="txt"><span class="lab">Task</span>Cut global latency and add DNS-level failover across regions.</div></div>
+        <div class="row"><div class="letter a">A</div><div class="txt"><span class="lab">Action</span>I enabled Cloud CDN on the load balancer's backend so static assets cached at the edge, fronted everything with the global anycast IP, and used Cloud DNS with health checks and a failover/geolocation policy across two regional backends.</div></div>
+        <div class="row"><div class="letter r">R</div><div class="txt"><span class="lab">Result</span>Page-load latency dropped for international users as the edge served most requests, origin load fell, and DNS-level failover kept the site available during a later regional incident.</div></div>
+      </div>
+    </section>
+    <section id="cloudsql-firestore" class="svc">
+      <header class="svc-head"><div class="num">05</div>
+        <div><h2>Cloud SQL + Firestore</h2><p class="tag">Pick the right database for the job</p></div></header>
+      <p class="lede">Cloud SQL is a managed relational service (MySQL, PostgreSQL, SQL Server) with HA and automated backups. Firestore is a serverless, autoscaling NoSQL document database; Bigtable and Spanner cover wide-column and global-relational needs.</p>
+      <ul class="keys"><li><b>Cloud SQL</b> — regional HA (synchronous standby), read replicas, automated backups + PITR.</li><li><b>Firestore</b> — serverless document DB, real-time listeners, strong consistency, autoscaling.</li><li><b>Spanner</b> — globally distributed, strongly consistent relational at scale.</li><li><b>Bigtable</b> — low-latency wide-column for huge analytical/time-series workloads.</li><li>Choose relational (Cloud SQL/Spanner) for joins/ACID; Firestore/Bigtable for scale-out NoSQL.</li></ul>
+      <div class="ref"><div class="rlabel"><span>REFERENCE CARD</span><b>gcloud</b></div>
+        <pre><span class="c"># Cloud SQL (PostgreSQL) with HA</span>
+gcloud sql instances create appdb --database-version POSTGRES_15 \
+  --tier db-custom-2-7680 --region us-central1 --availability-type REGIONAL
+gcloud sql databases create app --instance appdb
+<span class="c"># Firestore in Native mode</span>
+gcloud firestore databases create --location nam5</pre></div>
+      <div class="diagram"><div class="dlabel">Architecture</div>
+        <pre class="mermaid">flowchart LR
+    APP["Application"] --> CSQL["Cloud SQL - primary (HA)"]
+    CSQL -. sync .-> STB["Standby - zone b"]
+    CSQL --> RR["Read replica - reporting"]
+    APP --> FS["Firestore"]
+    FS --> C1["Collections - autoscale"]</pre></div>
+      <div class="star"><div class="star-title">STAR interview answer</div>
+        <div class="row"><div class="letter s">S</div><div class="txt"><span class="lab">Situation</span>Reporting queries were overloading the primary Cloud SQL instance and slowing transactions, and a session/cart store on the same database struggled during spikes.</div></div>
+        <div class="row"><div class="letter t">T</div><div class="txt"><span class="lab">Task</span>Protect transactional performance and give the cart a scalable, low-latency store.</div></div>
+        <div class="row"><div class="letter a">A</div><div class="txt"><span class="lab">Action</span>I switched Cloud SQL to a regional HA configuration for automatic failover, added a read replica and pointed reporting at it, tuned automated backups with point-in-time recovery, and moved sessions and cart data to Firestore with a deliberate document/collection model. Access went through the Cloud SQL Auth proxy and private IP.</div></div>
+        <div class="row"><div class="letter r">R</div><div class="txt"><span class="lab">Result</span>Transaction latency recovered, failover tested cleanly, the cart scaled through spikes at low latency, and moving reads to the replica removed the reporting bottleneck.</div></div>
+      </div>
+    </section>
+    <section id="functions-run" class="svc">
+      <header class="svc-head"><div class="num">06</div>
+        <div><h2>Cloud Functions + Cloud Run</h2><p class="tag">Run code, not servers</p></div></header>
+      <p class="lede">Cloud Functions runs small event-driven functions with no servers to manage. Cloud Run runs containerized services serverlessly. Both autoscale (including to zero) and bill per use.</p>
+      <ul class="keys"><li><b>Cloud Functions (2nd gen)</b> — HTTP or event triggers (Cloud Storage, Pub/Sub, Firestore, Eventarc).</li><li><b>Cloud Run</b> — any container, request- or CPU-based autoscaling, scale to zero, concurrency control.</li><li>Both bill only for what you use and scale automatically.</li><li>Secure with per-service service accounts, Secret Manager and VPC connectors.</li><li>Mind cold starts — set minimum instances on latency-sensitive services.</li></ul>
+      <div class="ref"><div class="rlabel"><span>REFERENCE CARD</span><b>gcloud</b></div>
+        <pre><span class="c"># Cloud Functions (2nd gen), HTTP trigger</span>
+gcloud functions deploy hello --gen2 --runtime python312 \
+  --region us-central1 --trigger-http --entry-point main
+<span class="c"># Cloud Run service from a container image</span>
+gcloud run deploy orders --image gcr.io/proj/orders \
+  --region us-central1 --min-instances 1 --allow-unauthenticated</pre></div>
+      <div class="diagram"><div class="dlabel">Architecture</div>
+        <pre class="mermaid">flowchart LR
+    GCS["Cloud Storage event"] --> FN["Cloud Function / Cloud Run"]
+    HTTP["HTTP trigger"] --> FN
+    PS["Pub/Sub / Eventarc"] --> FN
+    FN --> FS["Firestore"]
+    FN --> OUT["Storage / Pub/Sub"]
+    FN -. failures .-> DLQ["Dead-letter topic"]</pre></div>
+      <div class="star"><div class="star-title">STAR interview answer</div>
+        <div class="row"><div class="letter s">S</div><div class="txt"><span class="lab">Situation</span>An image pipeline ran on always-on GKE workers that were idle most of the day but overwhelmed during upload bursts.</div></div>
+        <div class="row"><div class="letter t">T</div><div class="txt"><span class="lab">Task</span>Replace it with something that scales to zero and still handles bursts.</div></div>
+        <div class="row"><div class="letter a">A</div><div class="txt"><span class="lab">Action</span>I triggered a Cloud Function on Cloud Storage object-finalize events to process the image and write metadata to Firestore, used a dedicated service account and Secret Manager for credentials, added a dead-letter topic with retries, and moved the heavier transform to Cloud Run with a minimum instance to avoid cold starts.</div></div>
+        <div class="row"><div class="letter r">R</div><div class="txt"><span class="lab">Result</span>Compute cost fell sharply since we paid per request, bursts were absorbed automatically, and we removed all cluster and server maintenance overhead.</div></div>
+      </div>
+    </section>
+    <section id="pubsub" class="svc">
+      <header class="svc-head"><div class="num">07</div>
+        <div><h2>Pub/Sub — Event-Driven</h2><p class="tag">Decouple, buffer, and fan out</p></div></header>
+      <p class="lede">Cloud Pub/Sub is a globally available messaging service that decouples producers and consumers. A topic fans a message out to many subscriptions, each consumed independently with at-least-once (or exactly-once) delivery.</p>
+      <ul class="keys"><li><b>Topic → subscriptions</b> — one publish fans out to many subscribers.</li><li><b>Pull or push</b> delivery; push can target Cloud Run/Functions endpoints.</li><li>At-least-once by default; <b>exactly-once</b> and <b>ordering keys</b> available.</li><li><b>Dead-letter topics</b> and retry policies for poison messages.</li><li>Global by design — publishers and subscribers can be in different regions.</li></ul>
+      <div class="ref"><div class="rlabel"><span>REFERENCE CARD</span><b>gcloud</b></div>
+        <pre><span class="c"># Topic + subscription with a dead-letter policy</span>
+gcloud pubsub topics create order-events
+gcloud pubsub topics create order-dlq
+gcloud pubsub subscriptions create inventory-sub \
+  --topic order-events --ack-deadline 30 \
+  --dead-letter-topic order-dlq --max-delivery-attempts 5</pre></div>
+      <div class="diagram"><div class="dlabel">Architecture</div>
+        <pre class="mermaid">flowchart LR
+    SRC["Order service"] --> TOP["Pub/Sub topic - order-events"]
+    TOP --> S1["Sub - inventory"] --> W1["Worker"]
+    TOP --> S2["Sub - notifications"] --> W2["Email / SMS"]
+    TOP --> S3["Sub - analytics"] --> W3["BigQuery consumer"]
+    S1 -. poison .-> DLQ["Dead-letter topic"]</pre></div>
+      <div class="star"><div class="star-title">STAR interview answer</div>
+        <div class="row"><div class="letter s">S</div><div class="txt"><span class="lab">Situation</span>An order service called inventory, notifications and analytics synchronously, so one slow downstream failed the whole checkout.</div></div>
+        <div class="row"><div class="letter t">T</div><div class="txt"><span class="lab">Task</span>Decouple the flow so orders are accepted instantly and downstreams process independently and reliably.</div></div>
+        <div class="row"><div class="letter a">A</div><div class="txt"><span class="lab">Action</span>On each order I published to a Pub/Sub topic and created separate subscriptions for inventory, notifications and analytics, each with its own consumer. I used ordering keys where sequence mattered, tuned the ack deadline, enabled a dead-letter topic with a retry policy, and streamed the analytics subscription into BigQuery.</div></div>
+        <div class="row"><div class="letter r">R</div><div class="txt"><span class="lab">Result</span>Checkout became instant and resilient — a downstream outage no longer failed orders because messages buffered and retried — and new consumers were added later with no change to the producer.</div></div>
+      </div>
+    </section>
+    <section id="monitoring" class="svc">
+      <header class="svc-head"><div class="num">08</div>
+        <div><h2>Cloud Monitoring + Cloud Logging</h2><p class="tag">See it, alert on it, audit it</p></div></header>
+      <p class="lede">Google Cloud's operations suite: Cloud Monitoring for metrics, dashboards and alerting; Cloud Logging for centralized logs; and Cloud Audit Logs for an immutable record of who did what.</p>
+      <ul class="keys"><li><b>Cloud Monitoring</b> — metrics, dashboards, uptime checks, alerting policies to many channels.</li><li><b>Cloud Logging</b> — centralized logs; query with the Logs Explorer; export via sinks.</li><li><b>Log-based metrics</b> turn log patterns into alertable metrics.</li><li><b>Cloud Audit Logs</b> — Admin Activity and Data Access logs for governance and compliance.</li><li><b>Cloud Trace / Profiler</b> add latency tracing and CPU/heap profiling.</li></ul>
+      <div class="ref"><div class="rlabel"><span>REFERENCE CARD</span><b>gcloud</b></div>
+        <pre><span class="c"># Notification channel + alerting policy (from files)</span>
+gcloud beta monitoring channels create --channel-content-from-file chan.json
+gcloud alpha monitoring policies create --policy-from-file cpu-policy.json
+<span class="c"># Export audit/app logs to BigQuery via a sink</span>
+gcloud logging sinks create audit-bq \
+  bigquery.googleapis.com/projects/proj/datasets/audit \
+  --log-filter=&#x27;logName:cloudaudit.googleapis.com&#x27;</pre></div>
+      <div class="diagram"><div class="dlabel">Architecture</div>
+        <pre class="mermaid">flowchart LR
+    RES["GCE / GKE / Cloud SQL / Run"] --> MON["Cloud Monitoring - metrics"]
+    RES --> LOG["Cloud Logging"]
+    MON --> AL["Alerting policy - CPU / 5xx / latency"]
+    AL --> CH["Channel"] --> N["Slack / PagerDuty / Email"]
+    RES --> AUD["Cloud Audit Logs"] --> BQ["BigQuery / sink - retention"]</pre></div>
+      <div class="star"><div class="star-title">STAR interview answer</div>
+        <div class="row"><div class="letter s">S</div><div class="txt"><span class="lab">Situation</span>Incidents were being spotted by users first, and there was no consolidated record of administrative actions across projects.</div></div>
+        <div class="row"><div class="letter t">T</div><div class="txt"><span class="lab">Task</span>Build proactive monitoring and alerting plus a compliance-grade audit trail.</div></div>
+        <div class="row"><div class="letter a">A</div><div class="txt"><span class="lab">Action</span>I built Cloud Monitoring dashboards and uptime checks, created alerting policies on CPU, 5xx and latency wired to Slack and PagerDuty channels, centralized logs in Cloud Logging with log-based metrics for key error patterns, added Cloud Trace for latency, and exported Cloud Audit Logs to BigQuery through a sink for long-term retention and querying.</div></div>
+        <div class="row"><div class="letter r">R</div><div class="txt"><span class="lab">Result</span>Mean time to detect and recover dropped sharply, we caught issues before customers, and the exported audit logs satisfied compliance and made post-incident RCA straightforward.</div></div>
+      </div>
+    </section>
+  <section id="cheatsheet" class="cheat">
+    <h2>Quick cheat sheet</h2>
+    <p class="sub">Service-to-category map, a memory hook, and the questions that come up most.</p>
+    <table><tbody><tr><th>Compute</th><td>Compute Engine · Managed Instance Groups · GKE (Kubernetes) · Cloud Run · App Engine</td></tr><tr><th>Storage</th><td>Cloud Storage (object) · Persistent Disk (block) · Filestore (file) · Archive class</td></tr><tr><th>Database</th><td>Cloud SQL · Firestore (NoSQL) · Spanner (global relational) · Bigtable · Memorystore</td></tr><tr><th>Networking & CDN</th><td>VPC (global) · Cloud DNS · Cloud CDN · Cloud Load Balancing · Cloud NAT</td></tr><tr><th>Integration</th><td>Pub/Sub · Eventarc · Cloud Tasks · API Gateway / Apigee · Workflows</td></tr><tr><th>Monitoring & Mgmt</th><td>Cloud Monitoring · Cloud Logging · Cloud Audit Logs · Cloud Trace · Deployment Manager (IaC)</td></tr><tr><th>Security & Identity</th><td>Cloud IAM · Cloud KMS · Secret Manager · Firewall rules · Cloud Armor (WAF/DDoS)</td></tr></tbody></table>
+    <div class="trick"><b>Memory hook — in GCP, know what is GLOBAL vs REGIONAL vs ZONAL</b><small>VPC & HTTP(S) Load Balancing are global · subnets, Cloud SQL, MIGs are regional · VMs & zonal MIGs are zonal. Getting this scope model right answers half of GCP networking questions.</small></div>
+    <h2 style="font-size:1.15rem;margin:0 0 14px">High-yield Q&amp;A</h2>
+    <div class="qa"><div class="q">What is global vs regional vs zonal in GCP?</div><div class="a">VPC networks and the external HTTP(S) load balancer are global. Subnets, regional MIGs and Cloud SQL are regional. Individual VMs and zonal MIGs live in a single zone. This scope model underpins most GCP design answers.</div></div><div class="qa"><div class="q">Firewall rules vs Security Groups (AWS)</div><div class="a">GCP firewall rules are stateful, defined at the VPC level, and applied to instances by network tags or service accounts rather than attached objects like AWS security groups.</div></div><div class="qa"><div class="q">Cloud SQL vs Spanner vs Firestore</div><div class="a">Cloud SQL is managed regional relational. Spanner is globally distributed, strongly consistent relational at scale. Firestore is serverless NoSQL document with real-time sync. Pick by scale, consistency and data model.</div></div><div class="qa"><div class="q">Cloud Functions vs Cloud Run</div><div class="a">Functions run small event-driven code with managed runtimes. Cloud Run runs any container with more control over concurrency, CPU and dependencies. Both scale to zero and bill per use.</div></div><div class="qa"><div class="q">Pub/Sub vs a queue like SQS</div><div class="a">Pub/Sub is topic-based pub/sub that fans out to many subscriptions and is global by design, with at-least-once (optionally exactly-once) delivery and dead-letter topics; it covers both fan-out and buffered-queue patterns.</div></div><div class="qa"><div class="q">Private Google Access vs Private Service Connect</div><div class="a">Private Google Access lets instances without external IPs reach Google APIs via internal routing. Private Service Connect exposes services (Google or your own) through private endpoints inside your VPC.</div></div><div class="qa"><div class="q">How do you make an app highly available on GCP?</div><div class="a">Use regional MIGs or GKE across zones behind the global load balancer, regional/HA databases or Spanner, health checks with auto-healing and failover, and stateless tiers with a shared session store.</div></div>
+  </section>
+</main>
+<footer>GCP interview-ready reference in the same format as the AWS and Azure packs. Diagrams render live via Mermaid. gcloud snippets are illustrative; STAR scenarios are meant to be adapted to your own experience before you speak them.</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<script>
+mermaid.initialize({startOnLoad:true,theme:'base',securityLevel:'loose',
+ flowchart:{curve:'basis',htmlLabels:true,padding:14},
+ themeVariables:{fontFamily:'IBM Plex Sans, sans-serif',fontSize:'13px',
+  primaryColor:'#e8f0fe',primaryTextColor:'#12203a',primaryBorderColor:'#1a73e8',
+  lineColor:'#0f9d58',secondaryColor:'#e6f7f4',tertiaryColor:'#fef3e2',
+  clusterBkg:'#f4f7fb',clusterBorder:'#c3ccdb'}});
+</script></body></html>
