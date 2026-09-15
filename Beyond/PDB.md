@@ -31,38 +31,4 @@ One gotcha the diagram implies but is worth stating: if you set `maxUnavailable:
 
 Want the AKS node-pool upgrade version of this, showing how `maxSurge` and the PDB interact during a surge upgrade?
 
-flowchart TB
-    subgraph WITHOUT["WITHOUT Pod Disruption Budget"]
-        direction TB
-        W1["Step 1<br/>Node1: App1 ok<br/>Node2: App2 ok<br/>Node3: empty"]:::healthy
-        W2["Step 2 - drain starts<br/>Node1: App1 terminating<br/>Node2: App2 ok<br/>Node3: App3 pending"]:::warn
-        W3["Step 3 - drain continues<br/>App1 terminated<br/>App2 terminating<br/>App3 NOT ready"]:::danger
-        W4["No Healthy Pods Available<br/>= OUTAGE"]:::outage
-        W1 --> W2 --> W3 --> W4
-    end
-
-    subgraph WITH["WITH Pod Disruption Budget"]
-        direction TB
-        P1["Step 1<br/>Node1: App1 ok<br/>Node2: App2 ok<br/>Node3: empty"]:::healthy
-        P2["Step 2 - drain starts<br/>Node1: App1 terminating<br/>Eviction API checks PDB"]:::warn
-        GATE{"PDB check:<br/>would this drop below<br/>minAvailable?"}:::gate
-        BLOCK["Evict returns HTTP 429<br/>BLOCK termination on Node2<br/>until App3 is Ready"]:::block
-        READY["App3 becomes Ready on Node3"]:::healthy
-        P3["Step 3 - safe eviction<br/>App1 terminated<br/>App2 terminating<br/>App3 serving"]:::healthy
-        P4["No Service Disruption"]:::success
-        P1 --> P2 --> GATE
-        GATE -->|unsafe| BLOCK --> READY --> P3
-        GATE -->|safe| P3
-        P3 --> P4
-    end
-
-    classDef healthy fill:#22c55e,stroke:#15803d,color:#ffffff,stroke-width:2px;
-    classDef warn fill:#f97316,stroke:#c2410c,color:#ffffff,stroke-width:2px;
-    classDef danger fill:#ef4444,stroke:#991b1b,color:#ffffff,stroke-width:2px;
-    classDef outage fill:#7f1d1d,stroke:#450a0a,color:#ffffff,stroke-width:3px;
-    classDef gate fill:#3b82f6,stroke:#1e40af,color:#ffffff,stroke-width:2px;
-    classDef block fill:#eab308,stroke:#a16207,color:#1f2937,stroke-width:3px;
-    classDef success fill:#16a34a,stroke:#14532d,color:#ffffff,stroke-width:3px;
-
-    style WITHOUT fill:#fee2e2,stroke:#ef4444,stroke-width:2px,color:#7f1d1d
-    style WITH fill:#dcfce7,stroke:#22c55e,stroke-width:2px,color:#14532d
+![alt text](image-1.png)
