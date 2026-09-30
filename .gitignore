@@ -1,0 +1,16 @@
+# Separated repos (live in their own GitHub repos)
+ValueMomentum/
+
+# Local credentials — never commit
+az-login.sh
+*.tfvars
+!*.tfvars.example
+.env
+
+# Terraform local state
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# Windows download metadata (WSL)
+*:Zone.Identifier
